@@ -37,6 +37,44 @@ def set_state(sim, qpos, qvel):
     sim.forward()
 
 
+def get_contact_force(mj_model, mj_data, body_name, frame_pos, frame_quat):
+    """Get the force acting on a body, with respect to a frame.
+    Note that mj_rnePostConstraint should be called before this function
+    to update the simulator state.
+
+    :param str body_name: Body name in mujoco xml model.
+    :return: force:torque format.
+    :rtype: np.array(6)
+
+    """
+    bodyId = mujoco_py.functions.mj_name2id(mj_model, MJ_BODY_OBJ, body_name)
+    force_com = mj_data.cfrc_ext[bodyId, :]
+    # contact force frame
+    # orientation is aligned with world frame
+    qf = np.array([1, 0, 0, 0.])
+    # position of origin in the world frame
+    body_rootid = mj_model.body_rootid[bodyId]
+    pf = mj_data.subtree_com[body_rootid, :]
+
+    # inverse com frame
+    pf_inv, qf_inv = np.zeros(3), np.zeros(4)
+    functions.mju_negPose(pf_inv, qf_inv, pf, qf)
+    # T^com_target
+    p_ct, q_ct=  np.zeros(3), np.zeros(4)
+    functions.mju_mulPose(p_ct, q_ct, pf_inv, qf_inv, frame_pos, frame_quat)
+    # q_ct -> mat
+    mat_ct = np.zeros(9)
+    functions.mju_quat2Mat(mat_ct, q_ct)
+
+    # transform to desired frame
+    trn_force = force_com.copy()
+    functions.mju_transformSpatial(trn_force, force_com, 1,
+                        p_ct, np.zeros(3), mat_ct)
+
+    # reverse order to get force:torque format
+    return np.concatenate((trn_force[3:], trn_force[:3]))
+
+
 # -------- GEOMETRY TOOLs
 def quat_error(q1, q2):
     """Compute the rotation vector (expressed in the base frame), that if follow

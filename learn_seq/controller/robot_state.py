@@ -1,7 +1,8 @@
 import numpy as np
 from mujoco_py import functions
 from learn_seq.utils.mujoco import MJ_SITE_OBJ, MJ_BODY_OBJ, MJ_GEOM_OBJ
-from learn_seq.utils.mujoco import quat2mat, pose_transform
+from learn_seq.utils.mujoco import quat2mat, pose_transform, get_contact_force,\
+            transform_spatial
 
 class RobotState:
     """Wrapper to the mujoco sim to store Franka state and perform
@@ -47,13 +48,38 @@ class RobotState:
         q = np.zeros(4)
         functions.mju_mat2Quat(q, R)
 
-        if frame_pos is None and frame_quat is None:
-            return p, q
-        else:
-            frame_pos = frame_pos or np.zeros(3)
-            frame_quat = frame_quat or np.array([1., 0, 0,0 ])
-            pf, qf = pose_transform(p, q, frame_pos, frame_quat)
-            return pf, qf
+        if frame_pos is None:
+            frame_pos = np.zeros(3)
+        if frame_quat is None:
+            frame_quat = np.array([1., 0, 0, 0])
+        pf, qf = pose_transform(p, q, frame_pos, frame_quat)
+        return pf, qf
+
+    def get_ee_force(self, frame_quat=None):
+        """Get current force torque acting on the end-effector,
+        with respect to a particular frame
+
+        :param np.array(3) frame_pos: if None then frame origin is coincide with
+                                      the ee frame
+        :param np.array(4) frame_quat: if None then frame axis coincide with the
+                                      ee frame
+        :return: force:torque format
+        :rtype: np.array(6)
+
+        """
+        # force acting on the ee, relative to the ee frame
+        p, q = self.get_pose()
+        fee = get_contact_force(self.model, self.data, "peg", p, q)
+        if frame_quat is None:
+            return fee
+        qf0 = np.zeros(4)
+        functions.mju_negQuat(qf0, frame_quat)
+        qfe = np.zeros(4)
+        functions.mju_mulQuat(qfe, qf0, q)  # qfe = qf0 * q0e
+
+        # transform to target frame
+        ff = transform_spatial(fee, qfe)
+        return ff
 
     def get_jacobian(self):
         """Get 6x7 geometric jacobian matrix."""
