@@ -1,9 +1,12 @@
-from learn_seq.controller.robot_state import RobotState
 
 class TaskController(object):
     """Base class for Panda task space controller in Mujoco. The controller
-    receives the desired position, velocity or force of an object in the
-    base frame and returns the command torque"""
+    receives the desired position, velocity or force of the end-effector in the
+    base frame and returns the command torque.
+    The end-effector definition is in `robot_state`
+
+    :param learn_seq.controller.RobotState robot_state: access simulation data
+    """
     def __init__(self, robot_state):
         self.robot_state = robot_state
 

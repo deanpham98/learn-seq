@@ -64,7 +64,6 @@ class RobotState:
         functions.mj_jacSite(
           self.model, self.data,
           jac_pos, jac_rot, self.ee_site_idx)
-        # print(jac_pos, jac_rot)
         jac[3:] = jac_rot.reshape((3,self.model.nq))
         jac[:3] = jac_pos.reshape((3,self.model.nq))
         # only return first 7 dofs
@@ -80,6 +79,9 @@ class RobotState:
     def get_timestep(self):
         """Timestep of the simulator is timestep of controller."""
         return self.model.opt.timestep
+
+    def get_sim_time(self):
+        return self.data.time
 
     def set_control_torque(self, tau):
         """Set control torque to the mujoco simulator."""
