@@ -1,11 +1,9 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from collections import namedtuple
-from learn_seq.utils.mujoco import quat_error
-from learn_seq.utils.general import StateRecorder, saturate_vector
+from learn_seq.utils.mujoco import quat_error, quat2vec
+from learn_seq.utils.general import saturate_vector
 from learn_seq.controller.base import TaskController
-
-# using quaternion as the orientation representation
-Pose = namedtuple("Pose", ["pos", "quat"])
 
 class HybridController(TaskController):
     """Simulated hybrid force/position controller for the panda robot
@@ -24,18 +22,22 @@ class HybridController(TaskController):
         kd = 2*np.sqrt(kp)
         self.set_gain(kp, kd)
 
+        # current pose
+        p, q = self.robot_state.get_pose()
+
         # store the command pose for external computation
-        self.pose_cmd = Pose(np.zeros(3), np.zeros(4))
+        self.p_cmd = p
+        self.q_cmd = q
 
         # controller_state
         # self.t = []
         self.controller_state = {
-            "err": None,
-            "p": None,
-            "pd": None,
-            "q": None,
-            "qd": None,
-            "fd": None,
+            "err": np.zeros(6),
+            "p": p,
+            "pd": p,
+            "q": q,
+            "qd": q,
+            "fd": np.zeros(6),
         }
 
     def forward_ctrl(self, pd, qd, vd, fd, S):
@@ -84,6 +86,10 @@ class HybridController(TaskController):
         tau_sat = saturate_vector(self.prev_tau_cmd, tau_cmd, self.dtau_max)
         self.prev_tau_cmd = tau_sat.copy()
 
+        # update pose cmd
+        self.p_cmd = iS[:3, :3].dot(p) + S[:3, :3].dot(pd)
+        self.q_cmd = qd
+
         # update controller state
         self.controller_state["err"] = ep
         self.controller_state["p"] = p
@@ -100,3 +106,71 @@ class HybridController(TaskController):
 
     def get_controller_state(self):
         return self.controller_state
+
+    def get_pose_cmd(self):
+        return self.p_cmd.copy(), self.q_cmd.copy()
+
+class StateRecordHybridController(HybridController):
+    """Record state, useful to visualize response, trajectory."""
+    def __init__(self, robot_state, kp_init=None, dtau_max=2.):
+        super().__init__(robot_state, kp_init, dtau_max)
+        self.record = False
+        self._reset_state()
+
+    def _reset_state(self):
+        self.state_dict = {}
+        for key in self.controller_state.keys():
+            self.state_dict[key] = []
+
+    def start_record(self):
+        self._reset_state()
+        self.record = True
+
+    def stop_record(self):
+        self.record = False
+
+    def forward_ctrl(self, *argv, **kwargs):
+        res =  super().forward_ctrl(*argv, **kwargs)
+        if self.record:
+            for key in self.state_dict.keys():
+                self.state_dict[key].append(self.controller_state[key])
+        return res
+
+    def plot_key(self, key):
+        """Plot data defined by a key list.
+
+        :param type key: Description of parameter `key`.
+        :return: Description of returned object.
+        :rtype: type
+
+        """
+        N = len(self.state_dict[key[0]])    # no. samples
+        t_record = len(self.state_dict[key[0]]) * self.dt
+        fig, ax = plt.subplots(3, 2, sharex=True)
+        for k in key:
+            data = np.array(self.state_dict[k])
+            for i in range(3):
+                ax[i, 0].plot(np.linspace(0, t_record, N), data[:, i])
+                if data.shape[1] == 6:
+                    ax[i, 1].plot(np.linspace(0, t_record, N), data[:, i+3])
+
+        for i in range(3):
+            ax[i, 0].legend(key)
+            ax[i, 0].set_xlabel("Simulation time (s)")
+            ax[i, 1].legend(key)
+            ax[i, 1].set_xlabel("Simulation time (s)")
+
+        return fig, ax
+
+    def plot_error(self):
+        self.plot_key(["err",])
+
+    def plot_pos(self):
+        self.plot_key(["p", "pd"])
+
+    def plot_orient(self):
+        # quat to rotation vector
+        for i in range(len(self.state_dict["q"])):
+            self.state_dict["q"][i] = quat2vec(self.state_dict["q"][i])
+            self.state_dict["qd"][i] = quat2vec(self.state_dict["qd"][i])
+        self.plot_key(["q", "qd"])
