@@ -97,3 +97,57 @@ def pose_transform(p1, q1, p21, q21):
     q2 = np.zeros_like(q1)
     functions.mju_mulQuat(q2, q21, q1) #q2 = q21*q1
     return p2, q2
+
+def integrate_quat(q, r, dt):
+    """Integrate quaternion by a fixed angular velocity over the duration dt.
+
+    :param np.array(4) q: quaternion.
+    :param np.array(3) r: angular velocity.
+    :param float dt: duration.
+    :return: result quaternion.
+    :rtype: np.array(4)
+    """
+    qres = np.zeros(4)
+    qe = np.zeros(4)
+    r = r*dt
+    angle = np.linalg.norm(r)
+    if angle < 1e-9:
+        # if angle too small then return current q
+        return q.copy()
+    axis = r/angle
+    functions.mju_axisAngle2Quat(qe, axis, angle)
+    functions.mju_mulQuat(qres, qe, q)
+    return qres
+
+def transform_spatial(v1, q21):
+    """Coordinate transformation of a spatial vector. The spatial vector can be either
+    twist (linear + angular velocity) or wrench (force + torque)
+
+    :param type v1: Spatial vector in frame 1
+    :param type q21: transformation matrix (in terms of quaternion)
+    :return: Description of returned object.
+    :rtype: type
+    """
+    R21 = quat2mat(q21)
+    R = np.block([[R21, np.zeros((3, 3))], [np.zeros((3, 3)), R21]])
+    return R.dot(v1)
+
+def similarity_transform(A1, q21):
+    """Similarity transformation of a matrix from frame 1 to frame 2
+            A2 = R21 * A1 * R12
+
+    :param np.array((3, 3)) A1: 3x3 matrix.
+    :param np.array(4) q21: quaternion representation.
+    :return: 3x3 matrix
+    :rtype: np.array
+
+    """
+    R21 = quat2mat(q21)
+    return R21.dot(A1.dot(R21.T))
+
+def quat2vec(q):
+    """Transform quaternion representation to rotation vector representation"""
+    r = np.zeros(3)
+    scale = 1
+    mujoco_py.functions.mju_quat2Vel(r, q, scale)
+    return r

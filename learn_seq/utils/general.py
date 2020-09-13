@@ -3,17 +3,6 @@ import numpy as np
 import learn_seq
 from functools import partial
 
-class StateRecorder:
-    def __init__(self, state_dict, callback):
-        self.example = state_dict
-        self.callback = partial(callback, self)
-
-    def reset_state(self):
-        self.state = {}
-        for key in self.example.keys():
-            state_dict[key] = []
-
-
 def create_file(path):
     '''
     Check if the path exists. If not, create a new one
