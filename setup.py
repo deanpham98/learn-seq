@@ -5,5 +5,5 @@ REQUIRES = ["numpy", "matplotlib", "gym"]
 setup(name='learn_seq',
       version='0.0.1',
       packages=setuptools.find_packages(),
-      install_requires=REQUIRES  # And any other dependencies foo needs
+      install_requires=REQUIRES
 )

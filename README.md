@@ -5,11 +5,13 @@ real-robot.
 ## INSTALL
 - install mujoco_py manually
 
-            pip install "mujoco-py=<2.1,>=2.0"
+        pip install "mujoco-py=<2.1,>=2.0"
 
 - install learn_seq package
 
-            python setup.py install
+        git clone --recurse-submodules https://github.com/nvuong21/learn-seq.git
+        cd learn-seq
+        python setup.py install
 
 ## TODO
 - adjust `round_hole_generation.py` so that the `round_pih.xml` can include the generated file
