@@ -1,5 +1,18 @@
 import os
+import numpy as np
 import learn_seq
+from functools import partial
+
+class StateRecorder:
+    def __init__(self, state_dict, callback):
+        self.example = state_dict
+        self.callback = partial(callback, self)
+
+    def reset_state(self):
+        self.state = {}
+        for key in self.example.keys():
+            state_dict[key] = []
+
 
 def create_file(path):
     '''
@@ -14,3 +27,19 @@ def get_module_path():
 def get_mujoco_model_path():
     module_path = get_module_path()
     return os.path.join(module_path, "mujoco/franka_pih")
+
+def saturate_vector(v1, v2, dmax):
+    """Limit the difference |v2 - v1| <= dmax, i.e.
+    vout[i] = v2[i]             if |v2[i] - v1| <= dmax
+    vout[i] = v1[i] + dmax      if  v2[i] - v1 > dmax
+    vout[i] = v1[i] - dmax      if  v2[i] - v1 > dmax
+
+    :param np.array v1:
+    :param np.array v2:
+    :param double dmax: a positive number
+    :return:
+    :rtype: np.array
+    """
+    assert dmax >= 0
+    dv =  np.minimum(dmax, np.maximum(-dmax, v2 - v1))
+    return v1 + dv

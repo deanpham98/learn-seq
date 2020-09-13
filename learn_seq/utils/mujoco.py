@@ -1,6 +1,13 @@
 import os
+import numpy as np
 import mujoco_py
+from mujoco_py import functions
 from learn_seq.utils.general import get_mujoco_model_path
+
+# object indicator in mujoco
+MJ_SITE_OBJ = 6     # `site` objec
+MJ_BODY_OBJ = 1     # `body` object
+MJ_GEOM_OBJ = 5     # `geom` object
 
 def load_model(xml_name="round_pih.xml"):
     """Load a model from `mujoco/franka_pih`
@@ -20,3 +27,73 @@ def load_model(xml_name="round_pih.xml"):
 
 def attach_viewer(sim):
     return mujoco_py.MjViewer(sim)
+
+def set_state(sim, qpos, qvel):
+    assert qpos.shape == (sim.model.nq,) and qvel.shape == (sim.model.nv,)
+    old_state = sim.get_state()
+    new_state = mujoco_py.MjSimState(old_state.time, qpos, qvel,
+                                     old_state.act, old_state.udd_state)
+    sim.set_state(new_state)
+    sim.forward()
+
+
+# -------- GEOMETRY TOOLs
+def quat_error(q1, q2):
+    """Compute the rotation vector (expressed in the base frame), that if follow
+        in a unit time, will transform a body with orientation `q1` to
+        orientation `q2`
+
+    :param list/np.ndarray q1: Description of parameter `q1`.
+    :param list/np.ndarray q2: Description of parameter `q2`.
+    :return: a 3D rotation vector
+    :rtype: np.ndarray
+
+    """
+    if isinstance(q1, list):
+        q1 = np.array(q1)
+
+    if isinstance(q2, list):
+        q2 = np.array(q2)
+
+    dtype=q1.dtype
+    neg_q1 = np.zeros(4, dtype=dtype)
+    err_rot_quat = np.zeros(4, dtype=dtype)
+    err_rot = np.zeros(3, dtype=dtype)
+
+    if q1.dot(q2) < 0:
+        q1 = -q1
+
+    functions.mju_negQuat(neg_q1, q1)
+    functions.mju_mulQuat(err_rot_quat, q2, neg_q1)
+    functions.mju_quat2Vel(err_rot, err_rot_quat, 1)
+    return err_rot
+
+def quat2mat(q):
+    """Tranform a quaternion to rotation amtrix.
+
+    :param type q: Description of parameter `q`.
+    :return: 3x3 rotation matrix
+    :rtype: np.array
+    """
+    mat = np.zeros(9)
+    functions.mju_quat2Mat(mat, q)
+    return mat.reshape((3, 3))
+
+def pose_transform(p1, q1, p21, q21):
+    """Coordinate transformation between 2 frames
+
+    :param np.ndarray p1: position in frame 1
+    :param np.ndarray q1: orientation (quaternion) in frame 1
+    :param np.ndarray p21: relative position between frame 1 and 2
+    :param np.ndarray q21: relative orientation between frame 1 and 2
+    :return: position and orientation in frame 2
+    :rtype: type
+
+    """
+    # quat to rotation matrix
+    R21 = quat2mat(q21)
+
+    p2 = p21 + R21.dot(p1)
+    q2 = np.zeros_like(q1)
+    functions.mju_mulQuat(q2, q21, q1) #q2 = q21*q1
+    return p2, q2
