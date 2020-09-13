@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import matplotlib.pyplot as plt
-from learn_seq.primitive.task import Move2Target
+from learn_seq.primitive.hybrid import Move2Target, Move2Contact, Displacement, AdmittanceMotion
 from learn_seq.utils.mujoco import integrate_quat, attach_viewer
 
 @pytest.fixture
@@ -9,6 +9,25 @@ def move2target(state, record):
     tf_pos = np.zeros(3)
     tf_quat = np.array([1., 0, 0,0 ])
     return Move2Target(state, record, tf_pos, tf_quat, timeout=4.)
+
+@pytest.fixture
+def move2contact(state, record):
+    tf_pos = np.zeros(3)
+    tf_quat = np.array([1., 0, 0,0 ])
+    return Move2Contact(state, record, tf_pos, tf_quat, timeout=4.)
+
+
+@pytest.fixture
+def displacement(state, record):
+    tf_pos = np.zeros(3)
+    tf_quat = np.array([1., 0, 0,0 ])
+    return Displacement(state, record, tf_pos, tf_quat, timeout=4.)
+
+@pytest.fixture
+def admittance(state, record):
+    tf_pos = np.zeros(3)
+    tf_quat = np.array([1., 0, 0,0 ])
+    return AdmittanceMotion(state, record, tf_pos, tf_quat, timeout=4.)
 
 # move to a random pose and plot response
 def test_move_to_target(sim, state, record, move2target):
@@ -50,6 +69,69 @@ def test_task_frame(sim, state, record, move2target):
 
     record.start_record()
     move2target.run(viewer=viewer)
+    record.stop_record()
+    record.plot_error()
+    record.plot_pos()
+    record.plot_orient()
+    plt.show()
+
+def test_move_to_target(sim, state, record, move2target, move2contact):
+    viewer = attach_viewer(sim)
+    # move  to above the hole
+    pt = np.array([0.53, 0.012, 0.2088])
+    qt = state.get_pose()[1]
+    ft = np.zeros(6)
+    s = 0.5
+    move2target.configure(pt, qt, ft, s)
+
+    # move down
+    u = np.array([0, 0, -0, 1, 1, 0.])
+    s = 0.1
+    fs = 10.
+    ft = np.zeros(6)
+    move2contact.configure(u, s, fs, ft)
+
+    #
+    move2target.run(viewer=viewer)
+    #
+    record.start_record()
+    move2contact.run(viewer=viewer)
+    record.stop_record()
+    record.plot_error()
+    record.plot_pos()
+    record.plot_orient()
+    plt.show()
+
+def test_displacement(sim, state, record, displacement):
+    viewer = attach_viewer(sim)
+    # move down
+    u = np.array([0, 0, 0, 0, 1, 0.])
+    s = 0.1
+    fs = 10.
+    ft = np.zeros(6)
+    dp = 0.1
+    displacement.configure(u, s, fs, ft, dp)
+
+    record.start_record()
+    displacement.run(viewer=viewer)
+    record.stop_record()
+    record.plot_error()
+    record.plot_pos()
+    record.plot_orient()
+    plt.show()
+
+def test_admittance_motion(sim, state, record, admittance):
+    viewer = attach_viewer(sim)
+    p, q = state.get_pose()
+    # move down
+    kd = np.array([0.]*3 + [0.12]*3)
+    ft = np.array([0, 0, -5, 0, 0, 0.])
+
+    depth_thresh = p[2] + 0.1
+    admittance.configure(kd, ft, depth_thresh)
+
+    record.start_record()
+    admittance.run(viewer=viewer)
     record.stop_record()
     record.plot_error()
     record.plot_pos()

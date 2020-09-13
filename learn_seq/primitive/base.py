@@ -65,28 +65,3 @@ class Primitive(object):
 
         """
         raise NotImplementedError
-
-class FixedGainTaskPrimitive(Primitive):
-    """Primitives where motion are defined with respect to a task frame, and
-    has fixed gains during execution
-
-    :param np.array(3) tf_pos: origin of the task frame (relative to the base frame)
-    :param np.array(4) tf_quat : orientation of the axis of the task frame (relative
-                            to the base frame)
-    """
-    def __init__(self,
-                 robot_state,
-                 controller,
-                 tf_pos,
-                 tf_quat,
-                 timeout=2.,
-                 **kwargs):
-        super().__init__(robot_state, controller, timeout, **kwargs)
-        self.set_task_frame(tf_pos, tf_quat)
-
-    def set_task_frame(self, tf_pos, tf_quat):
-        self.tf_pos = tf_pos
-        self.tf_quat = tf_quat
-
-    def set_controller_gain(self, kp, kd):
-        self.controller.set_gain(kp, kd)
