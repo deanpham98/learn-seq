@@ -15,3 +15,4 @@ real-robot.
 
 ## TODO
 - adjust `round_hole_generation.py` so that the `round_pih.xml` can include the generated file
+- fixed divide by 0 (quaternion)
