@@ -76,12 +76,13 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         set_state(self.sim, self.init_qpos, init_qvel)
         # clear control
         self.sim.data.ctrl[:] = 0
+        # reset controller cmd
+        self.controller.reset_pose_cmd()
 
     def _get_obs(self):
         if not self.robot_state.is_update():
             self.robot_state.update()
         p, q = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
-        print(p, q)
         # quat to angle axis
         r = quat2vec(q)
         f = self.robot_state.get_ee_force(frame_quat=self.tf_quat)
@@ -165,7 +166,6 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         self._eps_time = 0
         param = dict(pt=p, qt=q, ft=np.zeros(6), s=0.5,
                      kp=self.kp_init, kd=self.kd_init)
-        self.container.run("move2target", param)
         return self._get_obs()
 
     def set_task_frame(self, p, q):

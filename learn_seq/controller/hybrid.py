@@ -25,15 +25,10 @@ class HybridController(TaskController):
         kd = 2*np.sqrt(kp)
         self.set_gain(kp, kd)
 
-        # current pose
-        p, q = self.robot_state.get_pose()
-
         # store the command pose for external computation
-        self.p_cmd = p
-        self.q_cmd = q
-
+        self.reset_pose_cmd()
+        
         # controller_state
-        # self.t = []
         self.controller_state = {
             "err": np.zeros(6),
             "p": p,
@@ -102,6 +97,11 @@ class HybridController(TaskController):
         self.controller_state["fd"] = fd
 
         return tau_sat + tau_comp
+
+    def reset_pose_cmd(self):
+        p, q = self.robot_state.get_pose()
+        self.p_cmd = p
+        self.q_cmd = q
 
     def set_gain(self, kp, kd):
         self.kp = kp
