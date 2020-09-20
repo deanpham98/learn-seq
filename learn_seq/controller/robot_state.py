@@ -17,6 +17,7 @@ class RobotState:
         self.data = sim.data
         self.model = sim.model
         self.ee_site_idx = functions.mj_name2id(self.model, MJ_SITE_OBJ, ee_site_name)
+        self.isUpdated = False
 
     def update(self):
         """Update the internal simulation state (kinematics, external force, ...).
@@ -25,11 +26,16 @@ class RobotState:
         functions.mj_step1(self.model, self.data)
         # udpate the external force internally
         functions.mj_rnePostConstraint(self.model, self.data)
+        self.isUpdated = True
 
     def update_dynamic(self):
         """Update dynamic state (forward dynamic). The control torque should be
         set between self.update() and self.update_dynamic()"""
         functions.mj_step2(self.model, self.data)
+        self.isUpdated = False
+
+    def is_update(self):
+        return self.isUpdated
 
     def get_pose(self, frame_pos=None, frame_quat=None):
         """Get current pose of the end-effector with respect to a particular frame
