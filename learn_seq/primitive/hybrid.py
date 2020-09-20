@@ -260,7 +260,7 @@ class Displacement(Move2Contact):
 
         :param type delta_d: Desired displacement in the move direction.
         """
-        super().configure(u, s, fs, ft)
+        super().configure(u, s, fs, ft, kp, kd, timeout=timeout)
         self.delta_d = delta_d
         self.isDisplaceAchieved = False
 
