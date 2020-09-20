@@ -2,7 +2,7 @@ import numpy as np
 from mujoco_py import functions
 from learn_seq.utils.mujoco import MJ_SITE_OBJ, MJ_BODY_OBJ, MJ_GEOM_OBJ
 from learn_seq.utils.mujoco import quat2mat, pose_transform, get_contact_force,\
-            transform_spatial
+            transform_spatial, inverse_frame
 
 class RobotState:
     """Wrapper to the mujoco sim to store Franka state and perform
@@ -52,7 +52,9 @@ class RobotState:
             frame_pos = np.zeros(3)
         if frame_quat is None:
             frame_quat = np.array([1., 0, 0, 0])
-        pf, qf = pose_transform(p, q, frame_pos, frame_quat)
+        # inverse frame T_0t -> T_t0
+        inv_pos, inv_quat = inverse_frame(frame_pos, frame_quat)
+        pf, qf = pose_transform(p, q, inv_pos, inv_quat)
         return pf, qf
 
     def get_ee_force(self, frame_quat=None):

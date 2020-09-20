@@ -189,3 +189,8 @@ def quat2vec(q):
     scale = 1
     mujoco_py.functions.mju_quat2Vel(r, q, scale)
     return r
+
+def inverse_frame(p, q):
+    pi, qi = np.zeros(3), np.zeros(4)
+    functions.mju_negPose(pi, qi, p, q)
+    return pi, qi
