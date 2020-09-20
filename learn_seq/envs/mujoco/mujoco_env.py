@@ -1,8 +1,9 @@
 import os
+import gym
 import mujoco_py
 from learn_seq.utils.mujoco import set_state
 
-class MujocoEnv:
+class MujocoEnv(gym.Env):
     def __init__(self, model_path):
         if model_path.startswith('/'):
             fullpath = model_path
@@ -18,7 +19,7 @@ class MujocoEnv:
         self.viewer = None
 
     def render(self):
-        self._get_viewer(mode).render()
+        self._get_viewer().render()
 
     def _get_viewer(self):
         if self.viewer is None:

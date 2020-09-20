@@ -31,7 +31,7 @@ def record(state):
 def env(state):
     peg_pos_range = [[-0.05]*3, [0.05]*3]
     peg_rot_range = [[np.pi - 0.2] + [-0.2]*2, [np.pi + 0.2] + [0.2]*2]
-    initial_pos_range = [[-0.005]*3, [0.005]*3]
+    initial_pos_range = [[-0.005]*2 +[-0.005], [0.005]*2+[0.005]]
     initial_rot_range = [[-np.pi/180]*3, [np.pi/180]*3]
     primitive_list = []
     type = "move2contact"
@@ -45,7 +45,6 @@ def env(state):
     controller_kwargs=dict(kp_init=np.array([1500]*3+[60.]*3))
     return gym.make(id="learn_seq:MujocoInsertionEnv-v0",
                     xml_model_name="round_pih.xml",
-                    robot_state=state,
                     primitive_list=primitive_list,
                     peg_pos_range=peg_pos_range,
                     peg_rot_range=peg_rot_range,
