@@ -54,7 +54,7 @@ class DynamicDiscrete(Space):
         assert n >= 0
         self.n = n
         self.sub_spaces = []
-        self.sub_actions = sub_indices
+        self.sub_indices = sub_indices
         for s in sub_indices:
             sub_n = len(s)
             self.sub_spaces.append(Discrete(sub_n))
@@ -65,7 +65,7 @@ class DynamicDiscrete(Space):
 
     def sample_subspace(self, idx):
         action_idx = self.np_random.randint(self.sub_spaces[idx].n)
-        return self.sub_actions[idx][action_idx]
+        return self.sub_indices[idx][action_idx]
 
     def contains(self, x):
         if isinstance(x, int):
@@ -77,7 +77,7 @@ class DynamicDiscrete(Space):
         return as_int >= 0 and as_int < self.n
 
     def __repr__(self):
-        return "Discrete(%d)" % self.n
+        return "DynamicDiscrete({}, {})".format(len(self.sub_indices[0]),len(self.sub_indices[1])) 
 
     def __eq__(self, other):
         return isinstance(other, Discrete) and self.n == other.n

@@ -1,4 +1,5 @@
 import os
+import imp
 import numpy as np
 import learn_seq
 from functools import partial
@@ -16,6 +17,20 @@ def get_module_path():
 def get_mujoco_model_path():
     module_path = get_module_path()
     return os.path.join(module_path, "mujoco/franka_pih")
+
+def get_exp_path(exp_name):
+    module_path = get_module_path()
+    return os.path.join(module_path, "exp/" + exp_name)
+
+def load_config(exp_name):
+    exp_path = get_exp_path(exp_name)
+    config_path = os.path.join(exp_path, "config.py")
+    if not os.path.exists(config_path):
+        sys.exit("Experiment '%s' does not exist.\nDid you create '%s'?" %
+            (exp_name, config_path))
+    config = imp.load_source("config", config_path)
+
+    return config
 
 def saturate_vector(v1, v2, dmax):
     """Limit the difference |v2 - v1| <= dmax, i.e.
