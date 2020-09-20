@@ -167,6 +167,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         self._eps_time = 0
         param = dict(pt=p, qt=q, ft=np.zeros(6), s=0.5,
                      kp=self.kp_init, kd=self.kd_init)
+        self.container.run("move2target", param)
         return self._get_obs()
 
     def set_task_frame(self, p, q):

@@ -66,7 +66,7 @@ def build_and_train(config, agent_state_dict=None):
 
     # id (name of data dir)
     now = datetime.datetime.now()
-    id = "run_" + env_kwargs["xml_model_name"] + now.strftime("_%m_%d_%H_%M")
+    id = env_kwargs["xml_model_name"].split("_")[0] + now.strftime("_%m_%d_%H_%M")
     log_dir = config.log_dir
     with logger_context(log_dir, id, name, run_config,
                         override_prefix=True,  # save in local log dir
