@@ -18,7 +18,10 @@ class HybridController(TaskController):
         self.prev_tau_cmd = np.zeros(7)
         self.dtau_max = dtau_max
 
-        kp = kp_init or np.array([1000.]*3 + [60]*3)
+        if kp_init is None:
+            kp = np.array([1000.]*3 + [60]*3)
+        else:
+            kp = kp_init
         kd = 2*np.sqrt(kp)
         self.set_gain(kp, kd)
 
