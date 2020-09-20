@@ -50,10 +50,6 @@ class StructuredActionSpaceWrapper(TrainInsertionWrapper):
                  hole_pos_error_range,
                  hole_rot_error_range,
                  spaces_idx_list):
+        no_primitives = len(env.primitive_list)
+        env.action_space = DynamicDiscrete(no_primitives, spaces_idx_list)
         super().__init__(env, hole_pos_error_range, hole_rot_error_range)
-        self.spaces_idx_list = spaces_idx_list
-        env._set_action_space = self._set_action_space
-
-    def _set_action_space(self):
-        no_primitives = len(self.primitive_list)
-        self.action_space = DynamicDiscrete(no_primitives, self.spaces_idx_list)
