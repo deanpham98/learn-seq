@@ -74,6 +74,30 @@ def get_contact_force(mj_model, mj_data, body_name, frame_pos, frame_quat):
     # reverse order to get force:torque format
     return np.concatenate((trn_force[3:], trn_force[:3]))
 
+def get_geom_pose(model, geom_name):
+    """Return the geom pose (relative to parent body).
+
+    :param mujoco_py.MjModel model:
+    :param str geom_name:
+    :return: position, quaternion
+    :rtype: tuple(np.array(3), np.array(4))
+    """
+    geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
+    pos = model.geom_pos[geom_id, :]
+    quat = model.geom_quat[geom_id, :]
+    return pos, quat
+
+def get_geom_size(model, geom_name):
+    """Return the geom size.
+
+    :param mujoco_py.MjModel model:
+    :param str geom_name:
+    :return: (radius, half-length, _) for cylinder geom, and
+             (X half-size; Y half-size; Z half-size) for box geom
+    :rtype: np.array(3)
+    """
+    geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
+    return model.geom_size[geom_id, :]
 
 # -------- GEOMETRY TOOLs
 def quat_error(q1, q2):

@@ -30,6 +30,9 @@ class FixedGainTaskPrimitive(Primitive):
         self.p0 = np.zeros(3)               # init position
         self.q0 = np.array([1., 0, 0, 0])   # init orientation
 
+    def configure(kp, kd, timeout=None):
+        self.controller.set_gain(kp, kd)
+        self.timeout = timeout or self.timeout
 
     def set_task_frame(self, tf_pos, tf_quat):
         self.tf_pos = tf_pos
@@ -67,7 +70,7 @@ class Move2Target(FixedGainTaskPrimitive):
         # check whether the primitive is configured
         self.isConfigured = False
 
-    def configure(self, pt, qt, ft, s):
+    def configure(self, pt, qt, ft, s, kp, kd, timeout=None):
         """Configure the primitive for the target pos, target quat, target force and
         a speed factor. the target velocity is computed by vd = s*v_max
 
@@ -83,6 +86,7 @@ class Move2Target(FixedGainTaskPrimitive):
         self.S_mat = self._transform_selection_matrix(ft)
         if not self.isConfigured:
             self.isConfigured = True
+        super().configure(kp, kd, timeout=timeout)
 
     def step(self):
         # update time
@@ -157,7 +161,7 @@ class Move2Contact(FixedGainTaskPrimitive):
         self.isContact = False          # contact detection
         self.n_step_settle = 10
 
-    def configure(self, u, s, fs, ft):
+    def configure(self, u, s, fs, ft, kp, kd, timeout=None):
         """ Configure the controller, same as Move2Target
 
         :param np.array(6) u: move direction
@@ -177,6 +181,7 @@ class Move2Contact(FixedGainTaskPrimitive):
         self.ft = transform_spatial(ft, self.tf_quat)
         # selection matrix
         self.S_mat = self._transform_selection_matrix(ft)
+        super().configure(kp, kd, timeout=timeout)
 
     def step(self):
         # check stop condition
@@ -250,7 +255,7 @@ class Displacement(Move2Contact):
         self.pr0 = np.zeros(6)          # initial position
         self.qr0 = np.zeros(6)          # initial orientationt
 
-    def configure(self, u, s, fs, ft, delta_d):
+    def configure(self, u, s, fs, ft, delta_d, kp, kd, timeout=None):
         """Same as Move2Contact
 
         :param type delta_d: Desired displacement in the move direction.
@@ -300,16 +305,17 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
         super().__init__(robot_state, controller,
                          tf_pos, tf_quat, timeout,
                         **kwargs)
-        self.kd = np.zeros(6)
+        self.kd_adt = np.zeros(6)
         self.depth_thresh = 0.
 
-    def configure(self, kd, ft, depth_thresh):
-        self.kd = kd
+    def configure(self, kd_adt, ft, depth_thresh, kp, kd, timeout=None):
+        self.kd_adt = kd_adt
         self.depth_thresh = depth_thresh
         # force in base frame
         self.ft = transform_spatial(ft, self.tf_quat)
         # selection matrix
         self.S_mat = self._transform_selection_matrix(ft)
+        super().configure(kp, kd, timeout=timeout)
 
     def is_terminate(self):
         p_task, q_task = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
@@ -324,7 +330,7 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
         # ee force in ee frame
         f_e = self.robot_state.get_ee_force()
         # ee vel in ee frame
-        vd_e = self.kd.dot(f_e)
+        vd_e = self.kd_adt.dot(f_e)
         # limit velocity
         vd_e = np.maximum(-self.xdot_max, np.minimum(self.xdot_max, vd_e))
         # transform to base frame

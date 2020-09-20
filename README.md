@@ -16,3 +16,5 @@ real-robot.
 ## TODO
 - adjust `round_hole_generation.py` so that the `round_pih.xml` can include the generated file
 - fixed divide by 0 (quaternion)
+- add controller gain to configure
+- because `robot_state` is a member multiple objects, should have a isUpdate to check whether the sim is updated at each timestep
