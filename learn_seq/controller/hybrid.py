@@ -27,7 +27,8 @@ class HybridController(TaskController):
 
         # store the command pose for external computation
         self.reset_pose_cmd()
-        
+
+        p, q = self.robot_state.get_pose()
         # controller_state
         self.controller_state = {
             "err": np.zeros(6),

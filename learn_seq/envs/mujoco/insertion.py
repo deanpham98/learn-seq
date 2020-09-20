@@ -34,6 +34,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         # init robot position for reset
         self.init_qpos = np.array([0, -np.pi/4, 0, -3 * np.pi/4, 0, np.pi/2, np.pi / 4, 0.015, 0.015])
         self._eps_time = 0
+        # controller
+        self.controller = controller_class(self.robot_state, **controller_kwargs)
         self._reset_sim()
 
         # get hole_depth
@@ -51,8 +53,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         hole_pos = base_pos + base_mat.dot(base_to_hole_pos)
         hole_quat = base_quat
 
-        # controller and primitives
-        self.controller = controller_class(self.robot_state, **controller_kwargs)
+        # primitives
         self.container = PrimitiveContainer(self.robot_state, self.controller,
                             hole_pos, hole_quat)
         self.primitive_list = primitive_list
