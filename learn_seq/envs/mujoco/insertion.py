@@ -155,7 +155,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         reward = self._reward_func(obs, t_exec)
         isLimitReach = self._is_limit_reach(obs[:3])
         isSuccess = self._is_success(obs[:3])
-        done = isLimitReach or isSuccess
+        isTimeout = self._eps_time > 20.
+        done = isTimeout or isLimitReach or isSuccess
 
         info = {"success": isSuccess,
                 "insert_depth": obs[2]}
