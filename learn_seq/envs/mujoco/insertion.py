@@ -48,24 +48,24 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         base_origin = get_geom_pose(self.model, "base")[0]   # in "hole" body frame
         base_to_hole_pos = np.array([0, 0, base_half_height + base_origin[2] + hole_depth])
         # hole pos in world coordinate frame
-        self.hole_pos = base_pos + base_mat.dot(base_to_hole_pos)
-        self.hole_quat = base_quat
+        hole_pos = base_pos + base_mat.dot(base_to_hole_pos)
+        hole_quat = base_quat
 
+        # controller and primitives
+        self.controller = controller_class(self.robot_state, **controller_kwargs)
+        self.container = PrimitiveContainer(self.robot_state, self.controller,
+                            hole_pos, hole_quat)
         self.primitive_list = primitive_list
+
         InsertionBaseEnv.__init__(
             self,
-            hole_pos=self.hole_pos,
-            hole_quat=self.hole_quat,
+            hole_pos=hole_pos,
+            hole_quat=hole_quat,
             hole_depth=hole_depth,
             peg_pos_range=peg_pos_range,
             peg_rot_range=peg_rot_range,
             initial_pos_range=initial_pos_range,
             initial_rot_range=initial_rot_range,)
-
-        # controller and primitives
-        self.controller = controller_class(self.robot_state, **controller_kwargs)
-        self.container = PrimitiveContainer(self.robot_state, self.controller,
-                            self.tf_pos, self.tf_quat)
 
         # kp_init
         self.kp_init = controller_kwargs.get("kp_init", KP_DEFAULT)
@@ -167,3 +167,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
                      kp=self.kp_init, kd=self.kd_init)
         self.container.run("move2target", param)
         return self._get_obs()
+
+    def set_task_frame(self, p, q):
+        InsertionBaseEnv.set_task_frame(self, p, q)
+        # set task frame to all primitives
+        self.container.set_task_frame(p, q)
