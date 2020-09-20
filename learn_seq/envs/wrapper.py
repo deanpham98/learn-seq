@@ -1,4 +1,5 @@
 from learn_seq.utils.mujoco import integrate_quat
+from learn_seq.utils.gym import DynamicDiscrete
 from gym import Wrapper
 
 class TrainInsertionWrapper(Wrapper):
@@ -29,3 +30,27 @@ class TrainInsertionWrapper(Wrapper):
         hole_quat = integrate_quat(self.hole_quat, hole_rot_rel, 1)
         env.set_task_frame(hole_pos, hole_quat)
         return env.reset()
+
+# NOTE: the logic (observation -> action spaces) is not incorporated here. It is
+# in the agent and NN model
+class StructuredActionSpaceWrapper(TrainInsertionWrapper):
+    """Divide action spaces into different subspaces, defined by the subset of
+    available actions. To be used by agent/model
+
+    :param type env: Description of parameter `env`.
+    :param type hole_pos_error_range: Description of parameter `hole_pos_error_range`.
+    :param type hole_rot_error_range: Description of parameter `hole_rot_error_range`.
+    :param type spaces_idx_list: Description of parameter `spaces_idx_list`.
+    :attr spaces_idx_list:
+
+    """
+    def __init__(self, env,
+                 hole_pos_error_range,
+                 hole_rot_error_range,
+                 spaces_idx_list):
+         self.spaces_idx_list = spaces_idx_list
+         env._set_action_space = self._set_action_space
+
+    def _set_action_space(self):
+        no_primitives = len(self.primitive_list)
+        self.action_space = DynamicDiscrete(no_primitives, self.spaces_idx_list)
