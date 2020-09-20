@@ -62,7 +62,7 @@ class InsertionBaseEnv(gym.Env):
 
     def reset(self):
         p0 = self.initial_pos_mean + np.random.uniform(self.initial_pos_range[0],\
-                                        self.inital_pos_range[1])
+                                        self.initial_pos_range[1])
         r = self.initial_rot_mean + np.random.uniform(self.initial_rot_range[0],\
                                         self.initial_rot_range[1])
         q0 = integrate_quat(self.target_quat, r, 1)

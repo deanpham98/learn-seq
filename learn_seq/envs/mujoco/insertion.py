@@ -28,6 +28,10 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         mujoco_path = get_mujoco_model_path()
         model_path = os.path.join(mujoco_path, xml_model_name)
         MujocoEnv.__init__(self, model_path)
+        # init robot position for reset
+        self.init_qpos = np.array([0, -np.pi/4, 0, -3 * np.pi/4, 0, np.pi/2, np.pi / 4, 0.015, 0.015])
+        self._eps_time = 0
+        self._reset_sim()
 
         self.robot_state = robot_state
         # hole base pose relative to world frame
@@ -37,7 +41,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
 
         base_half_height = get_geom_size(self.model, "base")[2]
         base_origin = get_geom_pose(self.model, "base")[0]   # in "hole" body frame
-        base_to_hole_pos = np.array([0, 0, base_half_height + base_origin])
+        base_to_hole_pos = np.array([0, 0, base_half_height + base_origin[2]])
         # hole pos in world coordinate frame
         self.hole_pos = base_pos + base_mat.dot(base_to_hole_pos)
         self.hole_quat = base_quat
@@ -60,10 +64,6 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         self.controller = controller_class(robot_state, **controller_kwargs)
         self.container = PrimitiveContainer(robot_state, self.controller,
                             self.tf_pos, self.tf_quat)
-
-        # init robot position for reset
-        self.init_qpos = np.array([0, -np.pi/4, 0, -3 * np.pi/4, 0, np.pi/2, np.pi / 4])
-        self._eps_time = 0
 
         # kp_init
         self.kp_init = controller_kwargs.get("kp_init", KP_DEFAULT)

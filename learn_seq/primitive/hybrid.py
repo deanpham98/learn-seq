@@ -30,7 +30,7 @@ class FixedGainTaskPrimitive(Primitive):
         self.p0 = np.zeros(3)               # init position
         self.q0 = np.array([1., 0, 0, 0])   # init orientation
 
-    def configure(kp, kd, timeout=None):
+    def configure(self, kp, kd, timeout=None):
         self.controller.set_gain(kp, kd)
         self.timeout = timeout or self.timeout
 
