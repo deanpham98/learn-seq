@@ -15,6 +15,7 @@ class TrainInsertionWrapper(Wrapper):
     def __init__(self, env,
                  hole_pos_error_range,
                  hole_rot_error_range):
+        super().__init__(env)
         self.pos_error_range = hole_pos_error_range
         self.rot_error_range = hole_rot_error_range
         # true hole pose
@@ -28,8 +29,8 @@ class TrainInsertionWrapper(Wrapper):
         hole_rot_rel = np.random.uniform(self.rot_error_range[0],\
                                 self.rot_error_range[1])
         hole_quat = integrate_quat(self.hole_quat, hole_rot_rel, 1)
-        env.set_task_frame(hole_pos, hole_quat)
-        return env.reset()
+        self.env.set_task_frame(hole_pos, hole_quat)
+        return self.env.reset()
 
 # NOTE: the logic (observation -> action spaces) is not incorporated here. It is
 # in the agent and NN model
@@ -48,8 +49,9 @@ class StructuredActionSpaceWrapper(TrainInsertionWrapper):
                  hole_pos_error_range,
                  hole_rot_error_range,
                  spaces_idx_list):
-         self.spaces_idx_list = spaces_idx_list
-         env._set_action_space = self._set_action_space
+        super().__init__(self, hole_pos_error_range, hole_rot_error_range)
+        self.spaces_idx_list = spaces_idx_list
+        env._set_action_space = self._set_action_space
 
     def _set_action_space(self):
         no_primitives = len(self.primitive_list)
