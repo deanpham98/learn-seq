@@ -79,6 +79,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         self.sim.data.ctrl[:] = 0
         # reset controller cmd
         self.controller.reset_pose_cmd()
+        self.controller.reset_tau_cmd()
 
     def _get_obs(self):
         if not self.robot_state.is_update():

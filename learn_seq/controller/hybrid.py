@@ -104,6 +104,9 @@ class HybridController(TaskController):
         self.p_cmd = p
         self.q_cmd = q
 
+    def reset_tau_cmd(self):
+        self.prev_tau_cmd = np.zeros(7)
+
     def set_gain(self, kp, kd):
         self.kp = kp
         self.kd = kd

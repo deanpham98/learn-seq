@@ -42,7 +42,7 @@ class FixedGainTaskPrimitive(Primitive):
         self.controller.set_gain(kp, kd)
 
     def _transform_selection_matrix(self, ft):
-        s_vector = (ft == 0.).astype(int)
+        s_vector = (ft == 0.).astype(float)
         S_mat = np.diag(s_vector)
         # selection matrix in base frame
         S_mat_base = S_mat.copy()
