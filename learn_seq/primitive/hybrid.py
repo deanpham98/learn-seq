@@ -354,9 +354,10 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
         vd = transform_spatial(vd_e, q)
 
         # position/orientation based on vd
-        pd = self.p0 + vd[:3]*self.t_exec
-        rd = vd[3:]*self.t_exec
-        qd = integrate_quat(self.q0, rd, 1)
+        pc, qc = self.controller.get_pose_cmd()
+        pd = pc + vd[:3]*self.dt
+        rd = vd[3:]*self.dt
+        qd = integrate_quat(qc, rd, 1)
 
         #
         fd = self.ft
