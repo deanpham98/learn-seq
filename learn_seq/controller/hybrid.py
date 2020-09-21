@@ -36,6 +36,7 @@ class HybridController(TaskController):
             "pd": p,
             "q": q,
             "qd": q,
+            "f": np.zeros(6),
             "fd": np.zeros(6),
         }
 
@@ -96,6 +97,7 @@ class HybridController(TaskController):
         self.controller_state["pd"] = pd
         self.controller_state["qd"] = qd
         self.controller_state["fd"] = fd
+        self.controller_state["f"] = self.robot_state.get_ee_force()
 
         return tau_sat + tau_comp
 
@@ -170,14 +172,14 @@ class StateRecordHybridController(HybridController):
         return fig, ax
 
     def plot_error(self):
-        self.plot_key(["err",])
+        return self.plot_key(["err",])
 
     def plot_pos(self):
-        self.plot_key(["p", "pd"])
+        return self.plot_key(["p", "pd"])
 
     def plot_orient(self):
         # quat to rotation vector
         for i in range(len(self.state_dict["q"])):
             self.state_dict["q"][i] = quat2vec(self.state_dict["q"][i])
             self.state_dict["qd"][i] = quat2vec(self.state_dict["qd"][i])
-        self.plot_key(["q", "qd"])
+        return self.plot_key(["q", "qd"])

@@ -37,12 +37,14 @@ def test_move_to_target(sim, state, record, move2target):
     pt = p + np.random.random(3) * 0.05
     r = np.random.random(3)
     r = r / np.linalg.norm(r)
+    kp = np.array([1000]*3 + [60]*3)
+    kd = 2*np.sqrt(kp)
     qt = integrate_quat(q, r, 0.05)  # 0.1 rad
     qt = q
 
     s = 0.5
     ft = np.zeros(6)
-    move2target.configure(pt, qt, ft, s)
+    move2target.configure(pt, qt, ft, s, kp, kd)
 
     record.start_record()
     move2target.run(viewer=viewer)
@@ -61,11 +63,13 @@ def test_task_frame(sim, state, record, move2target):
     pt = np.random.random(3) * 0.05
     r = np.random.random(3)
     r = r / np.linalg.norm(r)
+    kp = np.array([1000]*3 + [60]*3)
+    kd = 2*np.sqrt(kp)
     qt = integrate_quat(np.array([1., 0., 0, 0]), r, 0.05)  # 0.1 rad
 
     s = 0.2
     ft = np.zeros(6)
-    move2target.configure(pt, qt, ft, s)
+    move2target.configure(pt, qt, ft, s, kp, kd)
 
     record.start_record()
     move2target.run(viewer=viewer)
@@ -75,21 +79,23 @@ def test_task_frame(sim, state, record, move2target):
     record.plot_orient()
     plt.show()
 
-def test_move_to_target(sim, state, record, move2target, move2contact):
+def test_move_to_contact(sim, state, record, move2target, move2contact):
     viewer = attach_viewer(sim)
     # move  to above the hole
     pt = np.array([0.53, 0.012, 0.2088])
     qt = state.get_pose()[1]
     ft = np.zeros(6)
     s = 0.5
-    move2target.configure(pt, qt, ft, s)
+    kp = np.array([1000]*3 + [60]*3)
+    kd = 2*np.sqrt(kp)
+    move2target.configure(pt, qt, ft, s, kp, kd)
 
     # move down
-    u = np.array([0, 0, -0, 1, 1, 0.])
+    u = np.array([0, 0, -0, 0, 1, 0.])
     s = 0.1
     fs = 10.
     ft = np.zeros(6)
-    move2contact.configure(u, s, fs, ft)
+    move2contact.configure(u, s, fs, ft, kp, kd)
 
     #
     move2target.run(viewer=viewer)
@@ -101,6 +107,7 @@ def test_move_to_target(sim, state, record, move2target, move2contact):
     record.plot_pos()
     record.plot_orient()
     plt.show()
+    assert False
 
 def test_displacement(sim, state, record, displacement):
     viewer = attach_viewer(sim)

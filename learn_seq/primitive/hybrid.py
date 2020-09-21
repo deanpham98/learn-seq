@@ -70,6 +70,10 @@ class Move2Target(FixedGainTaskPrimitive):
         # check whether the primitive is configured
         self.isConfigured = False
 
+    def __repr__(self):
+        return "move to pos {}, quat {} with desired force {}, speed {}"\
+                .format(self.pt, self.qt, self.ft, self.vt)
+
     def configure(self, pt, qt, ft, s, kp, kd, timeout=None):
         """Configure the primitive for the target pos, target quat, target force and
         a speed factor. the target velocity is computed by vd = s*v_max
@@ -160,6 +164,10 @@ class Move2Contact(FixedGainTaskPrimitive):
         self.thresh = 0.                # force thresh - stop condition
         self.isContact = False          # contact detection
         self.n_step_settle = 10
+
+    def __repr__(self):
+        return "move in direction {}, with desired force {}, until f > {}"\
+                .format(self.vt, self.ft, self.thresh)
 
     def configure(self, u, s, fs, ft, kp, kd, timeout=None):
         """ Configure the controller, same as Move2Target
@@ -255,6 +263,10 @@ class Displacement(Move2Contact):
         self.pr0 = np.zeros(6)          # initial position
         self.qr0 = np.zeros(6)          # initial orientationt
 
+    def __repr__(self):
+        return "move in direction {} with desired force {}, until f > {} or dp > {}"\
+                .format(self.vt, self.ft, self.thresh, self.delta_d)
+
     def configure(self, u, s, fs, ft, delta_d, kp, kd, timeout=None):
         """Same as Move2Contact
 
@@ -308,6 +320,10 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
         self.kd_adt = np.zeros(6)
         self.depth_thresh = 0.
 
+    def __repr__(self):
+        return "control desired force {} in z direction, and 0-torque in other until depth < {}"\
+                .format(self.ft, self.depth_thresh)
+
     def configure(self, kd_adt, ft, depth_thresh, kp, kd, timeout=None):
         self.kd_adt = kd_adt
         self.depth_thresh = depth_thresh
@@ -330,7 +346,7 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
         # ee force in ee frame
         f_e = self.robot_state.get_ee_force()
         # ee vel in ee frame
-        vd_e = self.kd_adt.dot(f_e)
+        vd_e = self.kd_adt * f_e
         # limit velocity
         vd_e = np.maximum(-self.xdot_max, np.minimum(self.xdot_max, vd_e))
         # transform to base frame
