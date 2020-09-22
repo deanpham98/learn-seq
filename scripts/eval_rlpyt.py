@@ -7,6 +7,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_config
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
+from learn_seq.envs.wrapper import InitialPoseWrapper
 
 def plot(x_idx, y_idx, data, ax=None):
     key_list = list(data.keys())
@@ -60,10 +61,20 @@ def eval_envs(config):
     env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
     envs.append(gym_make(**env_config))
 
-    # larger hole pose error
+    # fix initial state
     env_config = deepcopy(config.env_config)
-    env_config["wrapper_kwargs"]["hole_pos_error_range"] = ([-1./1000]*2+ [0.], [1./1000]*2+ [0.])
-    env_config["wrapper_kwargs"]["hole_rot_error_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
+    wrapper = env_config["wrapper"]
+    env_config["wrapper"] = []
+    env_config["wrapper"].append(wrapper)
+    env_config["wrapper"].append(InitialPoseWrapper)
+
+    wrapper_kwargs = []
+    wrapper_kwargs.append(env_config["wrapper_kwargs"])
+    wrapper_kwargs.append(dict(p0=np.array([0, -0.01, 0.01]), r0=[0, 0, 0]))
+    env_config["wrapper_kwargs"] = wrapper_kwargs
+    env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
+    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+
     envs.append(gym_make(**env_config))
 
     return envs
