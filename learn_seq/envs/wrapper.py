@@ -2,6 +2,8 @@ import numpy as np
 from gym import Wrapper
 from learn_seq.utils.mujoco import integrate_quat
 from learn_seq.utils.gym import DynamicDiscrete
+from learn_seq.mujoco_wrapper import MujocoModelWrapper
+
 
 class TrainInsertionWrapper(Wrapper):
     """Vary the hole position virtually, and assume the `hole_pos` and
@@ -53,3 +55,15 @@ class StructuredActionSpaceWrapper(TrainInsertionWrapper):
         no_primitives = len(env.primitive_list)
         env.action_space = DynamicDiscrete(no_primitives, spaces_idx_list)
         super().__init__(env, hole_pos_error_range, hole_rot_error_range)
+
+class SetMujocoModelWrapper(Wrapper):
+    def __init__(self, env, config_dict):
+        super().__init__(env)
+        self.model_wrapper = MujocoModelWrapper(env.model)
+        for key, val in config_dict.items():
+            if val is not None:
+                self.model_wrapper.set(key, val)
+        print(self.model_wrapper.get_mass())
+        print(self.model_wrapper.get_clearance())
+        print(self.model_wrapper.get_friction())
+        print(self.model_wrapper.get_joint_damping())

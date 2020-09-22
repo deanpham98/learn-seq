@@ -24,12 +24,20 @@ def gym_make(*args, info_example=None, wrapper=None, wrapper_kwargs=None, **kwar
     if info_example is None:
         if wrapper is None:
             return GymEnvWrapper(env)
+        elif isinstance(wrapper, list):
+            for w, config in zip(wrapper, wrapper_kwargs):
+                env = w(env, **config)
+            return GymEnvWrapper(env)
         else:
             return GymEnvWrapper(wrapper(env, **wrapper_kwargs))
 
     else:
         if wrapper is None:
             return GymEnvWrapper(EnvInfoWrapper(env, info_example))
+        elif isinstance(wrapper, list):
+            for w, config in zip(wrapper, wrapper_kwargs):
+                env = w(env, **config)
+            return GymEnvWrapper(EnvInfoWrapper(env, info_example))            
         else:
             return GymEnvWrapper(
                         EnvInfoWrapper(

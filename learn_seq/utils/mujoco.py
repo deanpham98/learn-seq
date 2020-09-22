@@ -8,6 +8,10 @@ from learn_seq.utils.general import get_mujoco_model_path
 MJ_SITE_OBJ = 6     # `site` objec
 MJ_BODY_OBJ = 1     # `body` object
 MJ_GEOM_OBJ = 5     # `geom` object
+# geom types
+MJ_CYLINDER = 5
+MJ_BOX = 6
+MJ_MESH = 7
 
 def load_model(xml_name="round_pih.xml"):
     """Load a model from `mujoco/franka_pih`
@@ -98,6 +102,27 @@ def get_geom_size(model, geom_name):
     """
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
     return model.geom_size[geom_id, :]
+
+def get_geom_friction(model, geom_name):
+    geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
+    return model.geom_friction[geom_id, :]
+
+def get_body_mass(model, body_name):
+    body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
+    return model.body_mass[body_id]
+
+def set_geom_size(model, geom_name, size):
+    geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
+    model.geom_size[geom_id, :] = size
+
+def set_body_mass(model, body_name, mass):
+    body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
+    model.body_mass[body_id] = mass
+
+def set_geom_friction(model, geom_name, friction):
+    geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
+    model.geom_friction[geom_id, :] = friction
+
 
 # -------- GEOMETRY TOOLs
 def quat_error(q1, q2):
