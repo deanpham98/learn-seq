@@ -67,3 +67,9 @@ class SetMujocoModelWrapper(Wrapper):
         print(self.model_wrapper.get_clearance())
         print(self.model_wrapper.get_friction())
         print(self.model_wrapper.get_joint_damping())
+
+class InitialPoseWrapper(Wrapper):
+    def __init__(self, env, p0, r0):
+        super().__init__(env)
+        env.initial_pos_mean = p0
+        env.initial_rot_mean = r0

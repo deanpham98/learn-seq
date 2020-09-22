@@ -1,7 +1,12 @@
 import os
 import json
+import torch
+import numpy as np
+
+from copy import deepcopy
 import matplotlib.pyplot as plt
-from learn_seq.utils.general import read_csv, get_exp_path, get_dirs
+from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_config
+from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
 
 def plot(x_idx, y_idx, data, ax=None):
     key_list = list(data.keys())
@@ -47,6 +52,74 @@ def plot_progress(run_path_list):
         axs[i].legend(legend)
     plt.show()
 
+def eval_envs(config):
+    envs = []
+    # no hole pose error
+    env_config = deepcopy(config.env_config)
+    env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
+    env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
+    envs.append(gym_make(**env_config))
+
+    # larger hole pose error
+    env_config = deepcopy(config.env_config)
+    env_config["wrapper_kwargs"]["hole_pos_error_range"] = ([-1./1000]*2+ [0.], [1./1000]*2+ [0.])
+    env_config["wrapper_kwargs"]["hole_rot_error_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
+    envs.append(gym_make(**env_config))
+
+    return envs
+
+def run_agent_single(agent, env, render=False):
+    seq = []
+    strat = []
+    episode_rew = 0
+    done = False
+    obs = env.reset()
+    while not done:
+        pa = torch.tensor(np.zeros(6))
+        pr = torch.tensor(0.)
+        # action = agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        action = agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        action = action.action
+        a = np.array(action)
+        obs, reward, done, info = env.unwrapped.step(a, render=render)
+        seq.append(action.item())
+        strat.append(env.primitive_list[action.item()][0])
+        episode_rew += reward
+
+    return seq, strat, info["success"], episode_rew
+
+def run_agent(agent, env, eps, render=False):
+    for i in range(eps):
+        seq, strat, suc, rew = run_agent_single(agent, env, render=render)
+        # episode info
+        print("------")
+        print("Episode {}".format(i))
+        print("sequence idx: {}".format(seq))
+        print("sequence name: {}".format(strat))
+        print("success: {}".format(suc))
+        print("episode reward: {}".format(rew))
+
+def evaluate(run_path_list, config, eval_eps=10, render=False):
+    for run_path in run_path_list:
+        with open(os.path.join(run_path, "params.json"), "r") as f:
+            run_config = json.load(f)
+            run_id = run_config["run_ID"]
+        if "round" in run_id:
+            config.env_config["xml_model_name"] = "round_pih.xml"
+        if "square" in run_id:
+            config.env_config["xml_model_name"] = "square_pih.xml"
+
+        agent_class = config.agent_config["agent_class"]
+        state_dict = load_agent_state_dict(run_path)
+        model_kwargs = config.agent_config["model_kwargs"]
+        agent = agent_class(initial_model_state_dict=state_dict,
+                            model_kwargs=model_kwargs)
+        #
+        eval_env_list = eval_envs(config)
+        agent.initialize(eval_env_list[0].spaces)
+        for env in eval_env_list:
+            run_agent(agent, env, eps=eval_eps, render=render)
+
 if __name__ == '__main__':
     import argparse
 
@@ -70,8 +143,8 @@ if __name__ == '__main__':
     else:
         run_path_list = [os.path.join(exp_path, run_name)]
 
+    config = load_config(args["exp_name"])
     if args["plot_only"] == True:
         plot_progress(run_path_list=run_path_list)
-    # else:
-    #     evaluate_exp(exp_dir, eval_eps=params["eval_eps"], render=params["render"],
-    #                  run_name=run_name)
+    else:
+        evaluate(run_path_list, config, args["eval_eps"], args["render"])
