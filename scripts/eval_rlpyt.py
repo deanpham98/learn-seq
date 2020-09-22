@@ -89,6 +89,7 @@ def run_agent_single(agent, env, render=False):
     return seq, strat, info["success"], episode_rew
 
 def run_agent(agent, env, eps, render=False):
+    no_success = 0
     for i in range(eps):
         seq, strat, suc, rew = run_agent_single(agent, env, render=render)
         # episode info
@@ -98,6 +99,8 @@ def run_agent(agent, env, eps, render=False):
         print("sequence name: {}".format(strat))
         print("success: {}".format(suc))
         print("episode reward: {}".format(rew))
+        no_success += int(suc)
+    print("success_rate {}".format(float(no_success)/eps))
 
 def evaluate(run_path_list, config, eval_eps=10, render=False):
     for run_path in run_path_list:
