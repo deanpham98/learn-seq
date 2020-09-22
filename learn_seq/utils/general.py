@@ -1,8 +1,10 @@
 import os
 import imp
+import csv
 import numpy as np
 import learn_seq
 from functools import partial
+from collections import OrderedDict
 
 def create_file(path):
     '''
@@ -31,6 +33,37 @@ def load_config(exp_name):
     config = imp.load_source("config", config_path)
 
     return config
+
+def read_csv(file_path):
+    data = OrderedDict()
+    with open(file_path) as f:
+        ptr = csv.reader(f)
+        key_list = None
+        data_list = []
+        for i, row in enumerate(ptr):
+            if i==0:
+                key_list = row
+            else:
+                data_ptr= []
+                for r in row:
+                    try:
+                        data_ptr.append(float(r))
+                    except ValueError:
+                        if r=="True":
+                            data_ptr.append(1)
+                        elif r=="False":
+                            data_ptr.append(0)
+                data_list.append(data_ptr)
+    for i, k in enumerate(key_list):
+        data[k] = [d[i] for d in data_list]
+    return data
+
+def get_dirs(path):
+    dir_list = []
+    for file in os.scandir(path):
+        if file.is_dir():
+            dir_list.append(file)
+    return dir_list
 
 def saturate_vector(v1, v2, dmax):
     """Limit the difference |v2 - v1| <= dmax, i.e.

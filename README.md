@@ -19,3 +19,4 @@ real-robot.
 - add controller gain to configure
 - because `robot_state` is a member multiple objects, should have a isUpdate to check whether the sim is updated at each timestep
 - change obs_up_limit and obs_low_limit to be defined relative to the goal -> change peg_pos_range and peg_rot_range specification
+- add run_ID to argparse
