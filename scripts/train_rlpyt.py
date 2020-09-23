@@ -111,7 +111,9 @@ if __name__ == '__main__':
 
     # train from checkpoint
     if args["checkpoint"]!="":
-        agent_state_dict = load_agent_state_dict(args["checkpoint"])
+        exp_path = get_exp_path(args["exp_name"])
+        run_path = os.path.join(exp_path, args["checkpoint"])
+        agent_state_dict = load_agent_state_dict(run_path)
     else:
         agent_state_dict = None
 
