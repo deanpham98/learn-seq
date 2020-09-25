@@ -6,7 +6,7 @@ from ..insertion_base import InsertionBaseEnv
 from .mujoco_env import MujocoEnv
 from learn_seq.utils.general import get_mujoco_model_path
 from learn_seq.utils.mujoco import get_geom_pose, get_geom_size, quat2mat,\
-            set_state, quat2vec
+            set_state, quat2vec, get_body_pose
 from learn_seq.primitive.container import PrimitiveContainer
 from learn_seq.controller.hybrid import HybridController
 from learn_seq.controller.robot_state import RobotState
@@ -38,20 +38,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         self.controller = controller_class(self.robot_state, **controller_kwargs)
         self._reset_sim()
 
-        # get hole_depth
-        # TODO: change square_pih to this format
-        hole_depth = get_geom_size(self.model, "hole1")[2]*2
-        # hole base pose relative to world frame
-        base_pos = self.data.get_body_xpos("hole").copy()
-        base_quat = self.data.get_body_xquat("hole").copy()
-        base_mat = quat2mat(base_quat)
-
-        base_half_height = get_geom_size(self.model, "base")[2]
-        base_origin = get_geom_pose(self.model, "base")[0]   # in "hole" body frame
-        base_to_hole_pos = np.array([0, 0, base_half_height + base_origin[2] + hole_depth])
-        # hole pos in world coordinate frame
-        hole_pos = base_pos + base_mat.dot(base_to_hole_pos)
-        hole_quat = base_quat
+        hole_pos, hole_quat, hole_depth = self._hole_pose_from_model()
 
         # primitives
         self.container = PrimitiveContainer(self.robot_state, self.controller,
@@ -80,6 +67,22 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         # reset controller cmd
         self.controller.reset_pose_cmd()
         self.controller.reset_tau_cmd()
+
+    def _hole_pose_from_model(self):
+        # get hole_depth
+        # TODO: change square_pih to this format
+        hole_depth = get_geom_size(self.model, "hole1")[2]*2
+        # hole base pose relative to world frame
+        base_pos, base_quat = get_body_pose(self.model, "hole")
+        base_mat = quat2mat(base_quat)
+
+        base_half_height = get_geom_size(self.model, "base")[2]
+        base_origin = get_geom_pose(self.model, "base")[0]   # in "hole" body frame
+        base_to_hole_pos = np.array([0, 0, base_half_height + base_origin[2] + hole_depth])
+        # hole pos in world coordinate frame
+        hole_pos = base_pos + base_mat.dot(base_to_hole_pos)
+        hole_quat = base_quat
+        return hole_pos, hole_quat, hole_depth
 
     def _get_obs(self):
         if not self.robot_state.is_update():

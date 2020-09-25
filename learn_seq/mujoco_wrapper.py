@@ -3,13 +3,15 @@ from mujoco_py import functions
 from learn_seq.utils.mujoco import MJ_BODY_OBJ, MJ_GEOM_OBJ, MJ_SITE_OBJ,\
             MJ_BOX, MJ_MESH, MJ_CYLINDER
 from learn_seq.utils.mujoco import get_geom_size, get_geom_friction, get_body_mass,\
-            set_geom_friction, set_geom_size, set_body_mass
+            set_geom_friction, set_geom_size, set_body_mass, get_body_pose,\
+            set_body_pose
 
 
 class MujocoModelWrapper:
     def __init__(self, model):
         self.model = model
         self.peg_name = "peg"
+        self.hole_body_name  = "hole"
         self.peg_geom_id = functions.mj_name2id(self.model, MJ_GEOM_OBJ, self.peg_name)
         self.peg_body_id = functions.mj_name2id(self.model, MJ_BODY_OBJ, self.peg_name)
         # joint_names = ["panda0_joint{}".format(i) for i in range(1, 8)]
@@ -68,6 +70,9 @@ class MujocoModelWrapper:
     def get_joint_damping(self):
         return self.model.dof_damping
 
+    def get_hole_pose(self):
+        return get_body_pose(self.model, "hole")
+
     def set_friction(self, friction):
         set_geom_friction(self.model, self.peg_name, friction)
 
@@ -97,6 +102,9 @@ class MujocoModelWrapper:
             old_damping = self.model.dof_damping
             damping = np.concatenate((damping, old_damping[7:]))
         self.model.dof_damping[:] = damping
+
+    def set_hole_pose(self, pos, quat):
+        set_body_pose(self.model, self.hole_body_name, pos, quat)
 
     def set(self, key, val):
         self.map_set[key](val)

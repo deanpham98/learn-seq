@@ -21,6 +21,9 @@ class MujocoEnv(gym.Env):
     def render(self):
         self._get_viewer().render()
 
+    def close(self):
+        self.viewer = None
+
     def _get_viewer(self):
         if self.viewer is None:
             self.viewer = mujoco_py.MjViewer(self.sim)
