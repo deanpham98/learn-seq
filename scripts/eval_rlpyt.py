@@ -102,15 +102,10 @@ def run_agent_single(agent, env, render=False):
         action = agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
         action = action.action
         a = np.array(action)
-        # type = env.primitive_list[action.item()][0]
-        # if type=="admittance":
-        #     env.controller.start_record()
-        obs, reward, done, info = env.unwrapped.step(a, render=render)
-        # if type=="admittance":
-        #     env.controller.stop_record()
-        #     env.controller.plot_pos()
-        #     env.controller.plot_key(["p",])
-        #     plt.show()
+        if render:
+            obs, reward, done, info = env.unwrapped.step(a, render=render)
+        else:
+            obs, reward, done, info = env.unwrapped.step(a)
         seq.append(action.item())
         strat.append(env.primitive_list[action.item()][0])
         episode_rew += reward
@@ -140,8 +135,11 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         with open(os.path.join(run_path, "params.json"), "r") as f:
             run_config = json.load(f)
             run_id = run_config["run_ID"]
-            config.env_config["xml_model_name"] = run_config["env_config"]["xml_model_name"]
-            config.env_config["controller_class"] = StateRecordHybridController
+        if "Real" not in config.env_config["id"]:
+            if "round" in run_id:
+                config.env_config["xml_model_name"] = "round_pih.xml"
+            if "square" in run_id:
+                config.env_config["xml_model_name"] = "square_pih.xml"
 
         agent_class = config.agent_config["agent_class"]
         state_dict = load_agent_state_dict(run_path)

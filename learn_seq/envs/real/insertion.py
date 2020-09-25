@@ -1,5 +1,6 @@
 # TODO: move _reward_func, _is_success, _is_limit_reach to insertion_base to
 # avoid duplication
+import time
 import numpy as np
 import gym
 from learn_seq.envs.insertion_base import InsertionBaseEnv
@@ -11,6 +12,7 @@ class RealInsertionEnv(InsertionBaseEnv):
     def __init__(self,
                  hole_pos,
                  hole_quat,
+                 hole_depth,
                  primitive_list,
                  peg_pos_range,
                  peg_rot_range,
@@ -18,6 +20,9 @@ class RealInsertionEnv(InsertionBaseEnv):
                  initial_rot_range,
                  depth_thresh=0.95,
                  **controller_kwargs):
+        self.ros_interface = FrankaRosInterface()
+        self.container = RealPrimitiveContainer(self.ros_interface, hole_pos, hole_quat)
+        self.primitive_list = primitive_list
         super().__init__(hole_pos=hole_pos,
                          hole_quat=hole_quat,
                          hole_depth=hole_depth,
@@ -27,9 +32,6 @@ class RealInsertionEnv(InsertionBaseEnv):
                          initial_rot_range=initial_rot_range)
         self._eps_time = 0
         self.depth_thresh = depth_thresh
-        self.ros_interface = FrankaRosInterface()
-        self.primitive_list = primitive_list
-        self.container = RealPrimitiveContainer(self.ros_interface)
 
         # kp_init
         self.kp_init = controller_kwargs.get("kp_init", KP_DEFAULT)
@@ -38,7 +40,7 @@ class RealInsertionEnv(InsertionBaseEnv):
     def step(self, action):
         t_exec = 0
         type, param = self.primitive_list[action]
-        status, t_exec = self.container.run(type, action)
+        status, t_exec = self.container.run(type, param)
         self._eps_time += t_exec
 
         obs = self._get_obs()
@@ -56,7 +58,7 @@ class RealInsertionEnv(InsertionBaseEnv):
     def _get_obs(self):
         p, q= self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
         # quat to angle axis
-        r = quat2vec(r)
+        r = quat2vec(q)
         f = self.ros_interface.get_ee_force()
         return np.hstack((p, r, f))
 
@@ -83,12 +85,13 @@ class RealInsertionEnv(InsertionBaseEnv):
         p0 = self.target_pos.copy()
         p0[2] = 0.01
         q0 = self.target_quat.copy()
-        self.ros_interface.move_to_pose(p0, q0, 0.1, self.tf_pos, self.tf_quat)
+        self.ros_interface.move_to_pose(p0, q0, 0.3, self.tf_pos, self.tf_quat, 10)
+        pa, qa = self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
         time.sleep(0.5)
         self.ros_interface.set_init_force()
-
         # move to reset position
-        self.ros_interface.move_to_pose(p, q, 0.1, self.tf_pos, self.tf_quat)
+        self.ros_interface.move_to_pose(p, q, 0.1, self.tf_pos, self.tf_quat, 10)
+        pa, qa = self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
         obs =  self._get_obs()
         return self._normalize_obs(obs)
 
@@ -111,6 +114,7 @@ class RealInsertionEnv(InsertionBaseEnv):
         rwd_short_length = -t_exec/4
 
         # error (large force) is bad
+        rwd_error = 0
         if self._is_robot_error():
             rwd_error = -20
 

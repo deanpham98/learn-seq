@@ -1,16 +1,18 @@
 import numpy as np
 import rospy
+import actionlib
 from franka_controllers.msg import HybridControllerState, Gain
 from franka_motion_primitive.srv import RunPrimitive, SetInitialForce,\
                 RunPrimitiveRequest, SetInitialForceRequest
 from franka_motion_primitive.msg import MotionGeneratorState, PrimitiveType,\
-                MoveToPoseParam, ConstantVelocityParam
+                MoveToPoseParam, ConstantVelocityParam, DisplacementParam, AdmittanceMotionParam
 from franka_msgs.msg import FrankaState, ErrorRecoveryAction, ErrorRecoveryActionGoal
 from learn_seq.utils.mujoco import pose_transform, inverse_frame
 
 FRANKA_ERROR_MODE = 4
 KP_DEFAULT = np.array([1500.]*3 + [60, 60, 30])
-TIMEOUT_DEFAULT = 2
+KD_DEFAULT = 2*np.sqrt(KP_DEFAULT)
+TIMEOUT_DEFAULT = 5
 
 class FrankaRosInterface:
     def __init__(self,):
@@ -96,17 +98,34 @@ class FrankaRosInterface:
         self._recovery_action_client.send_goal(goal)
         self._recovery_action_client.wait_for_result(rospy.Duration.from_sec(2.0))
 
-    def move_to_pose(self, p, q, s, tf_pos, tf_quat):
-        pass
+    def move_to_pose(self, p, q, s,
+                     tf_pos=np.zeros(3),
+                     tf_quat=np.array([1., 0, 0 ,0]),
+                     timeout=5.):
+        cmd = self.get_move_to_pose_cmd(p, q, np.zeros(6), s,
+                                        KP_DEFAULT, KD_DEFAULT,
+                                        tf_pos, tf_quat, timeout)
+        status, t_exec =  self.run_primitive(cmd)
+        return status, t_exec
 
     def move_up(self, s=0.05, timeout=2.):
-        pass
+        u = np.array([0, 0, 1., 0, 0, 0])
+        cmd = self.get_constant_velocity_cmd(u, s=s, fs=100, ft=np.zeros(6),
+                    kp=KP_DEFAULT, kd=KD_DEFAULT, timeout=timeout)
+
+        status, t_exec =  self.run_primitive(cmd)
+        return status, t_exec
 
     def hold_pose(self):
-        pass
+        p = self._state["p"].copy()
+        q = self._state["q"].copy()
+        status, t_exec = self.move_to_pose(p, q, 0.01)
+        return status, t_exec
 
     def error_recovery(self):
-        pass
+        goal = ErrorRecoveryActionGoal()
+        self._recovery_action_client.send_goal(goal)
+        self._recovery_action_client.wait_for_result(rospy.Duration.from_sec(2.0))
 
     def get_ee_pose(self, frame_pos=None, frame_quat=None):
         p = self._state["p"].copy()
@@ -119,6 +138,9 @@ class FrankaRosInterface:
         pf, qf = pose_transform(p, q, inv_pos, inv_quat)
         return pf, qf
 
+    def get_ee_pos(self):
+        return self._state["p"].copy()
+
     def get_ee_force(self, frame_quat=None):
         return self._state["f"]
 
@@ -129,9 +151,9 @@ class FrankaRosInterface:
                              tf_pos=np.zeros(3),
                              tf_quat=np.array([1., 0,0 ,0]),
                              timeout=None):
-        self.cmd = RunPrimitiveRequest()
-        # self.cmd.type = PrimitiveType.MoveToPose
-        self.cmd.type = PrimitiveType.MoveToPoseFeedback
+        cmd = RunPrimitiveRequest()
+        # cmd.type = PrimitiveType.MoveToPose
+        cmd.type = PrimitiveType.MoveToPoseFeedback
         p = MoveToPoseParam()
         p.task_frame.pos = tf_pos
         p.task_frame.quat = tf_quat
@@ -144,17 +166,17 @@ class FrankaRosInterface:
         p.fd = ft
         p.controller_gain = self.get_gain_cmd(kp, kd)
 
-        self.cmd.time = rospy.Time.now().to_sec()
-        self.cmd.move_to_pose_param = p
+        cmd.time = rospy.Time.now().to_sec()
+        cmd.move_to_pose_param = p
         # gain
-        return self.cmd
+        return cmd
 
     def get_constant_velocity_cmd(self, u, s, fs, ft, kp, kd,
                                   tf_pos=np.zeros(3),
                                   tf_quat=np.array([1., 0,0 ,0]),
                                   timeout=None):
-        self.cmd = RunPrimitiveRequest()
-        self.cmd.type = PrimitiveType.ConstantVelocity
+        cmd = RunPrimitiveRequest()
+        cmd.type = PrimitiveType.ConstantVelocity
 
         p = ConstantVelocityParam()
         p.task_frame.pos = tf_pos
@@ -166,16 +188,16 @@ class FrankaRosInterface:
         p.fd = ft
         p.controller_gain = self.get_gain_cmd(kp, kd)
 
-        self.cmd.time = rospy.Time.now().to_sec()
-        self.cmd.constant_velocity_param = p
-        return self.cmd
+        cmd.time = rospy.Time.now().to_sec()
+        cmd.constant_velocity_param = p
+        return cmd
 
     def get_displacement_cmd(self, u, s, fs, ft, delta_d, kp, kd,
                              tf_pos=np.zeros(3),
                              tf_quat=np.array([1., 0,0 ,0]),
                              timeout=None):
-        self.cmd = RunPrimitiveRequest()
-        self.cmd.type = PrimitiveType.Displacement
+        cmd = RunPrimitiveRequest()
+        cmd.type = PrimitiveType.Displacement
 
         p = DisplacementParam()
         p.task_frame.pos = tf_pos
@@ -188,27 +210,27 @@ class FrankaRosInterface:
         p.displacement = delta_d
         p.controller_gain = self.get_gain_cmd(kp, kd)
 
-        self.cmd.time = rospy.Time.now().to_sec()
-        self.cmd.constant_velocity_param = p
+        cmd.time = rospy.Time.now().to_sec()
+        cmd.displacement_param = p
 
-        return self.cmd
+        return cmd
 
     def get_admittance_cmd(self, kd_adt, ft, depth_thresh, kp, kd,
                             tf_pos=np.zeros(3),
                             tf_quat=np.array([1., 0,0 ,0]),
                             timeout=None):
-        self.cmd = RunPrimitiveRequest()
-        self.cmd.type = PrimitiveType.AdmittanceMotion
+        cmd = RunPrimitiveRequest()
+        cmd.type = PrimitiveType.AdmittanceMotion
 
         p = AdmittanceMotionParam()
         p.kd = kd_adt
         p.fd = ft
         p.timeout = timeout or TIMEOUT_DEFAULT
         p.controller_gain = self.get_gain_cmd(kp, kd)
-        self.cmd.time = rospy.Time.now().to_sec()
-        self.cmd.admittance_motion_param = p
+        cmd.time = rospy.Time.now().to_sec()
+        cmd.admittance_motion_param = p
 
-        return self.cmd
+        return cmd
 
     def get_gain_cmd(self, kp, kd=None):
         cmd = Gain()

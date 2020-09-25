@@ -95,6 +95,41 @@ class PPOStructuredInsertionModel(torch.nn.Module):
 
         return pi, v
 
+class PPOStructuredRealModel(PPOStructuredInsertionModel):
+    def __init__(self, *argv, **kwargs):
+        super().__init__(*argv, **kwargs)
+
+    def forward(self, observation, prev_action, prev_reward):
+        """
+        Compute mean, log_std, and value estimate from input state. Infers
+        leading dimensions of input: can be [T,B], [B], or []; provides
+        returns with same leading dims.  Intermediate feedforward layers
+        process as [T*B,H], with T=1,B=1 when not given. Used both in sampler
+        and in algorithm (both via the agent).
+        """
+        # Infer (presence of) leading dimensions: [T,B], [B], or [].
+        lead_dim, T, B, _ = infer_leading_dims(observation, self._obs_ndim)
+        obs_flat = observation.view(T * B, -1)
+        pi = torch.zeros((obs_flat.shape[0], self.n), dtype=obs_flat.dtype, device=obs_flat.device)
+
+        for i in range(obs_flat.shape[0]):
+            if (np.abs(obs_flat[i, 6:9])<=2).all():
+                p = F.softmax(self.pi_free(obs_flat[i, :6]), dim=-1)
+                pi[i, self.sub_indices[0]] = p
+            else:
+                p = F.softmax(self.pi_con(obs_flat[i, :6]), dim=-1)
+                pi[i, self.sub_indices[1]] = p
+
+        v = self.v(obs_flat[:, :6]).squeeze(-1)
+        # Restore leading dimensions: [T,B], [B], or [], as input.
+        pi, v = restore_leading_dims((pi, v), lead_dim, T, B)
+
+        return pi, v
+
 class PPOStructuredInsertionAgent(StructuredInsertionEnvMixin, CategoricalPgAgent):
     def __init__(self, ModelCls=PPOStructuredInsertionModel, **kwargs):
+        super().__init__(ModelCls=ModelCls, **kwargs)
+
+class PPOStructuredRealAgent(StructuredInsertionEnvMixin, CategoricalPgAgent):
+    def __init__(self, ModelCls=PPOStructuredRealModel, **kwargs):
         super().__init__(ModelCls=ModelCls, **kwargs)

@@ -12,19 +12,21 @@ class RealPrimitiveContainer:
         if not self._is_feasible(param):
             return self.ros_interface.hold_pose()
         else:
-            cmd = self.get_primitive_req(type, **param)
-            status, t_exec self.ros_interface.run_primitive(cmd)
+            param["tf_pos"] = self.tf_pos
+            param["tf_quat"] = self.tf_quat
+            cmd = self.get_primitive_req(type, param)
+            status, t_exec = self.ros_interface.run_primitive(cmd)
             return status, t_exec
 
     def get_primitive_req(self, type, param):
         if type=="move2target":
-            cmd = self.ros_interface.get_move_to_pose_cmd(param)
+            cmd = self.ros_interface.get_move_to_pose_cmd(**param)
         elif type=="move2contact":
-            cmd = self.ros_interface.get_constant_velocity_cmd(param)
+            cmd = self.ros_interface.get_constant_velocity_cmd(**param)
         elif type=="displacement":
-            cmd = self.ros_interface.get_displacement_cmd(param)
+            cmd = self.ros_interface.get_displacement_cmd(**param)
         elif type=="admittance":
-            cmd = self.ros_interface.get_admittance_cmd(param)
+            cmd = self.ros_interface.get_admittance_cmd(**param)
         return cmd
 
     def set_task_frame(self, tf_pos, tf_quat):
@@ -32,7 +34,7 @@ class RealPrimitiveContainer:
         self.tf_quat = tf_quat
 
     def _is_feasible(self, param):
-        if param["fd"][2] != 0:
+        if param["ft"][2] != 0:
             p, q = self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
             if p[2] > 0.005:
                  return False
