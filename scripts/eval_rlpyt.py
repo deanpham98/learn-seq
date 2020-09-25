@@ -7,7 +7,10 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_config
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
-from learn_seq.envs.wrapper import InitialPoseWrapper
+from learn_seq.utils.gym import append_wrapper
+from learn_seq.utils.mujoco import integrate_quat
+from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper
+from learn_seq.controller.hybrid import StateRecordHybridController
 
 def plot(x_idx, y_idx, data, ax=None):
     key_list = list(data.keys())
@@ -62,19 +65,26 @@ def eval_envs(config):
     envs.append(gym_make(**env_config))
 
     # fix initial state
-    env_config = deepcopy(config.env_config)
-    wrapper = env_config["wrapper"]
-    env_config["wrapper"] = []
-    env_config["wrapper"].append(wrapper)
-    env_config["wrapper"].append(InitialPoseWrapper)
+    # wrapper = InitialPoseWrapper
+    # wrapper_kwargs = dict(
+    #     p0 = np.array([0, -0.0, 0.01]),
+    #     r0 = np.array([0., 0, 0])
+    # )
+    # env_config = append_wrapper(config.env_config,
+    #         wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    # env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
+    # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    # envs.append(gym_make(**env_config))
 
-    wrapper_kwargs = []
-    wrapper_kwargs.append(env_config["wrapper_kwargs"])
-    wrapper_kwargs.append(dict(p0=np.array([0, -0.01, 0.01]), r0=[0, 0, 0]))
-    env_config["wrapper_kwargs"] = wrapper_kwargs
-    env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
-    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-
+    # change hole pose
+    rot = np.array([0, -60*np.pi/180, 0])
+    hole_body_quat = integrate_quat(np.array([1., 0,0 ,0]), rot, 1)
+    wrapper = HolePoseWrapper
+    wrapper_kwargs = dict(
+        hole_body_pos=np.array([0.53, 0.012, 0.5088]),
+        hole_body_quat=hole_body_quat
+    )
+    env_config = append_wrapper(config.env_config, wrapper, wrapper_kwargs, pos="first")
     envs.append(gym_make(**env_config))
 
     return envs
@@ -92,7 +102,15 @@ def run_agent_single(agent, env, render=False):
         action = agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
         action = action.action
         a = np.array(action)
+        # type = env.primitive_list[action.item()][0]
+        # if type=="admittance":
+        #     env.controller.start_record()
         obs, reward, done, info = env.unwrapped.step(a, render=render)
+        # if type=="admittance":
+        #     env.controller.stop_record()
+        #     env.controller.plot_pos()
+        #     env.controller.plot_key(["p",])
+        #     plt.show()
         seq.append(action.item())
         strat.append(env.primitive_list[action.item()][0])
         episode_rew += reward
@@ -112,16 +130,15 @@ def run_agent(agent, env, eps, render=False):
         print("episode reward: {}".format(rew))
         no_success += int(suc)
     print("success_rate {}".format(float(no_success)/eps))
+    env.close()
 
 def evaluate(run_path_list, config, eval_eps=10, render=False):
     for run_path in run_path_list:
         with open(os.path.join(run_path, "params.json"), "r") as f:
             run_config = json.load(f)
             run_id = run_config["run_ID"]
-        if "round" in run_id:
-            config.env_config["xml_model_name"] = "round_pih.xml"
-        if "square" in run_id:
-            config.env_config["xml_model_name"] = "square_pih.xml"
+            config.env_config["xml_model_name"] = run_config["env_config"]["xml_model_name"]
+            config.env_config["controller_class"] = StateRecordHybridController
 
         agent_class = config.agent_config["agent_class"]
         state_dict = load_agent_state_dict(run_path)

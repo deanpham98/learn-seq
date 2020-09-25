@@ -1,3 +1,4 @@
+from copy import deepcopy
 import gym
 import os
 import numpy as np
@@ -77,7 +78,39 @@ class DynamicDiscrete(Space):
         return as_int >= 0 and as_int < self.n
 
     def __repr__(self):
-        return "DynamicDiscrete({}, {})".format(len(self.sub_indices[0]),len(self.sub_indices[1])) 
+        return "DynamicDiscrete({}, {})".format(len(self.sub_indices[0]),len(self.sub_indices[1]))
 
     def __eq__(self, other):
         return isinstance(other, Discrete) and self.n == other.n
+
+def append_wrapper(config, wrapper, wrapper_kwargs, pos="last"):
+    newconf = deepcopy(config)
+    old_wrapper = config["wrapper"]
+    old_kwargs = config["wrapper_kwargs"]
+    new_wrapper = []
+    new_wrapper_kwargs = []
+    if not isinstance(old_wrapper, list):
+        new_wrapper.append(old_wrapper)
+        new_wrapper_kwargs.append(old_kwargs)
+    else:
+        new_wrapper = [wi for wi in old_wrapper]
+        new_wrapper_kwargs = [wi for wi in old_kwargs]
+
+    # append new wrapper
+    if not isinstance(wrapper, list):
+        if pos=="last":
+            new_wrapper.append(wrapper)
+            new_wrapper_kwargs.append(wrapper_kwargs)
+        elif pos=="first":
+            new_wrapper.insert(0, wrapper)
+            new_wrapper_kwargs.insert(0, wrapper_kwargs)
+    else:
+        if pos=="last":
+            new_wrapper = new_wrapper + wrapper
+            new_wrapper_kwargs = new_wrapper_kwargs + wrapper_kwargs
+        elif pos=="first":
+            new_wrapper = wrapper + new_wrapper
+            new_wrapper_kwargs = wrapper_kwargs + new_wrapper_kwargs
+    newconf["wrapper"] = new_wrapper
+    newconf["wrapper_kwargs"] = new_wrapper_kwargs
+    return newconf

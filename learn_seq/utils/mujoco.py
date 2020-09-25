@@ -111,6 +111,10 @@ def get_body_mass(model, body_name):
     body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
     return model.body_mass[body_id]
 
+def get_body_pose(model, body_name):
+    body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
+    return model.body_pos[body_id], model.body_quat[body_id]
+
 def set_geom_size(model, geom_name, size):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
     model.geom_size[geom_id, :] = size
@@ -123,6 +127,10 @@ def set_geom_friction(model, geom_name, friction):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
     model.geom_friction[geom_id, :] = friction
 
+def set_body_pose(model, body_name, pos, quat):
+    body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
+    model.body_pos[body_id, :] = pos
+    model.body_quat[body_id, :] = quat    
 
 # -------- GEOMETRY TOOLs
 def quat_error(q1, q2):
