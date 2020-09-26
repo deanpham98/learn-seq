@@ -7,10 +7,8 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_config
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
-from learn_seq.utils.gym import append_wrapper
-from learn_seq.utils.mujoco import integrate_quat
-from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper
-from learn_seq.controller.hybrid import StateRecordHybridController
+from learn_seq.envs.wrapper import InitialPoseWrapper
+from learn_seq.ros.logger import basic_logger
 
 def plot(x_idx, y_idx, data, ax=None):
     key_list = list(data.keys())
@@ -63,17 +61,19 @@ def eval_envs(config):
     env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
     envs.append(gym_make(**env_config))
 
-    # test for fix initial state
-    wrapper = InitialPoseWrapper
-    wrapper_kwargs = dict(
-        p0 = np.array([0, -0.0, 0.01]),
-        r0 = np.array([0., 0, 0])
-    )
-    env_config = append_wrapper(config.env_config,
-            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
-    env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
-    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-    envs.append(gym_make(**env_config))
+    # fix initial state
+    # env_config = deepcopy(config.env_config)
+    # wrapper = env_config["wrapper"]
+    # env_config["wrapper"] = []
+    # env_config["wrapper"].append(wrapper)
+    # env_config["wrapper"].append(InitialPoseWrapper)
+    #
+    # wrapper_kwargs = []
+    # wrapper_kwargs.append(env_config["wrapper_kwargs"])
+    # wrapper_kwargs.append(dict(p0=np.array([0, 0.0, 0.005]), r0=[0*np.pi/180, 0, 0]))
+    # env_config["wrapper_kwargs"] = wrapper_kwargs
+    # env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
 
     # change hole pose in the mujoco environment
     rot = np.array([0, -60*np.pi/180, 0])
@@ -163,6 +163,8 @@ if __name__ == '__main__':
     parser.add_argument("--plot-only", action="store_true",
                         help="only plot progress")
     parser.add_argument("--run-name", "-rn", type=str)
+    parser.add_argument("--log", action="store_true",
+                        help="run 1 episode for recording")
 
     args = parser.parse_args()
     args = vars(args)
@@ -178,5 +180,10 @@ if __name__ == '__main__':
     config = load_config(args["exp_name"])
     if args["plot_only"] == True:
         plot_progress(run_path_list=run_path_list)
+    elif args["log"]:
+        logger = basic_logger(exp_path)
+        logger.start_record()
+        evaluate(run_path_list, config, 1)
+        logger.stop()
     else:
         evaluate(run_path_list, config, args["eval_eps"], args["render"])

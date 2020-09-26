@@ -21,7 +21,7 @@ qx = np.array([np.cos(np.pi/2), np.sin(np.pi/2), 0, 0])
 hole_quat = mul_quat(hole_quat, qx)
 
 #
-SPEED_FACTOR_RANGE = [0.01, 0.05]
+SPEED_FACTOR_RANGE = [0.008, 0.02]
 SLIDING_SPEED_FACTOR_RANGE = [0.004, 0.01]
 FORCE_THRESH_RANGE = [5, 10]
 TORQUE_THRESH_RANGE = [0.1, 1]
@@ -218,8 +218,8 @@ env_config = {
     "hole_depth": HOLE_DEPTH,
     "peg_pos_range": ([-0.05]*3, [0.05]*3),
     "peg_rot_range": ([np.pi - 0.2] + [-0.2]*2, [np.pi + 0.2] + [0.2]*2),
-    "initial_pos_range": ([-0.005]*2+ [-0.002], [0.005]*2+ [0.002]),
-    "initial_rot_range": ([-5*np.pi/180]*3, [5*np.pi/180]*3),
+    "initial_pos_range": ([-0.002]*2+ [-0.0], [0.002]*2+ [0.0]),
+    "initial_rot_range": ([-2*np.pi/180]*3, [2*np.pi/180]*3),
     "depth_thresh": DEPTH_THRESH,
     "wrapper": StructuredActionSpaceWrapper,
     "wrapper_kwargs": {
