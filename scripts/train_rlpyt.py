@@ -104,6 +104,8 @@ if __name__ == '__main__':
         config.env_config["xml_model_name"] = "round_pih.xml"
     if args["env"] == "square":
         config.env_config["xml_model_name"] = "square_pih.xml"
+    if args["env"] == "triangle":
+        config.env_config["xml_model_name"] = "triangle_pih.xml"
 
     # hardware stuffs
     config.gpu_idx = args["gpu_idx"]
