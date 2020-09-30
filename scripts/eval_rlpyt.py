@@ -95,6 +95,7 @@ def run_agent_single(agent, env, render=False):
     episode_rew = 0
     done = False
     obs = env.reset()
+    print("intial pos: {}".format(env.ros_interface.get_ee_pose()))
     while not done:
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
