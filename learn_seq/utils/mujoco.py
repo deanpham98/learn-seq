@@ -101,7 +101,10 @@ def get_geom_size(model, geom_name):
     :rtype: np.array(3)
     """
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
-    return model.geom_size[geom_id, :]
+    if model.geom_type[geom_id] == MJ_BOX or model.geom_type[geom_id] == MJ_CYLINDER:
+        return model.geom_size[geom_id, :]
+    else:
+        return None
 
 def get_geom_friction(model, geom_name):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
@@ -114,6 +117,15 @@ def get_body_mass(model, body_name):
 def get_body_pose(model, body_name):
     body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
     return model.body_pos[body_id], model.body_quat[body_id]
+
+def get_mesh_vertex_pos(model, geom_name):
+    geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
+    assert model.geom_type[geom_id] == MJ_MESH
+    mesh_id = model.geom_dataid[geom_id]
+    first_vertex_id = model.mesh_vertadr[mesh_id]
+    no_vertex = model.mesh_vertnum[mesh_id]
+    vertex_pos = model.mesh_vert[first_vertex_id:first_vertex_id+no_vertex]
+    return vertex_pos
 
 def set_geom_size(model, geom_name, size):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
@@ -130,7 +142,7 @@ def set_geom_friction(model, geom_name, friction):
 def set_body_pose(model, body_name, pos, quat):
     body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
     model.body_pos[body_id, :] = pos
-    model.body_quat[body_id, :] = quat    
+    model.body_quat[body_id, :] = quat
 
 # -------- GEOMETRY TOOLs
 def quat_error(q1, q2):

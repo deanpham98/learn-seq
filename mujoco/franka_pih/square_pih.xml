@@ -37,10 +37,10 @@
     </body> -->
     <body name="hole" pos="0.53 0.012 0.1088">
       <geom name="base" type="box" mass="0.1" pos="0 0 0.01" size="0.1 0.1 0.01"/>
-      <geom name="block1" type="box" mass="0.1" pos="0.0575 -0.0425 0.03" size="0.0425 0.0575 0.01"/>
-      <geom name="block2" type="box" mass="0.1" pos="-0.0575 0.0425 0.03" size="0.0425 0.0575 0.01"/>
-      <geom name="block3" type="box" mass="0.1" pos="0.0425 0.0575 0.03" size="0.0575 0.0425 0.01"/>
-      <geom name="block4" type="box" mass="0.1" pos="-0.0425 -0.0575 0.03" size="0.0575 0.0425 0.01"/>
+      <geom name="hole1" type="box" mass="0.1" pos="0.0575 -0.0425 0.03" size="0.0425 0.0575 0.01"/>
+      <geom name="hole2" type="box" mass="0.1" pos="-0.0575 0.0425 0.03" size="0.0425 0.0575 0.01"/>
+      <geom name="hole3" type="box" mass="0.1" pos="0.0425 0.0575 0.03" size="0.0575 0.0425 0.01"/>
+      <geom name="hole4" type="box" mass="0.1" pos="-0.0425 -0.0575 0.03" size="0.0575 0.0425 0.01"/>
     </body>
   </worldbody>
 

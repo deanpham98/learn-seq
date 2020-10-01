@@ -6,7 +6,7 @@ from ..insertion_base import InsertionBaseEnv
 from .mujoco_env import MujocoEnv
 from learn_seq.utils.general import get_mujoco_model_path
 from learn_seq.utils.mujoco import get_geom_pose, get_geom_size, quat2mat,\
-            set_state, quat2vec, get_body_pose
+            set_state, quat2vec, get_body_pose, get_mesh_vertex_pos
 from learn_seq.primitive.container import PrimitiveContainer
 from learn_seq.controller.hybrid import HybridController
 from learn_seq.controller.robot_state import RobotState
@@ -70,8 +70,14 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
 
     def _hole_pose_from_model(self):
         # get hole_depth
-        # TODO: change square_pih to this format
-        hole_depth = get_geom_size(self.model, "hole1")[2]*2
+        geom_size = get_geom_size(self.model, "hole1")
+        # if geom is not cylinder or box type
+        if geom_size is None:
+            vert_pos = get_mesh_vertex_pos(self.model, "hole1")
+            hole_depth = np.max(vert_pos[:, 0]) - np.min(vert_pos[:, 0])
+        else:
+            hole_depth = geom_size[2]*2
+
         # hole base pose relative to world frame
         base_pos, base_quat = get_body_pose(self.model, "hole")
         base_mat = quat2mat(base_quat)
