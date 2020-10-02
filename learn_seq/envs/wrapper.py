@@ -8,12 +8,14 @@ from learn_seq.mujoco_wrapper import MujocoModelWrapper
 class TrainInsertionWrapper(Wrapper):
     """Vary the hole position virtually, and assume the `hole_pos` and
     `hole_quat` attribute of environment is the true hole pose.
-    Use for training with RL
+    Use for training with RL. At the beginning of each episode, a random error
+    is generated and added to the real hole pose
 
-    :param tuple hole_pos_error_range: lower bound and upper bound of hole pos error.
-                                 Example: ([-0.001]*3, [0.001]*3)
-    :param tuple hole_rot_error_range: lower bound and upper bound of hole orientation error.
+    :param tuple hole_pos_error_range: lower bound and upper bound of hole pos error in m
+    :param tuple hole_rot_error_range: lower bound and upper bound of hole orientation error in rad
 
+    Example: hole_pos_error_range = ([-0.001, -0.001, -0.001], [0.001, 0.001, 0.001])
+             -> random error in [-1, 1] mm
     """
     def __init__(self, env,
                  hole_pos_error_range,
@@ -38,14 +40,11 @@ class TrainInsertionWrapper(Wrapper):
 # NOTE: the logic (observation -> action spaces) is not incorporated here. It is
 # in the agent and NN model
 class StructuredActionSpaceWrapper(TrainInsertionWrapper):
-    """Divide action spaces into different subspaces, defined by the subset of
-    available actions. To be used by agent/model
+    """Divide action spaces into 2 subspaces, contact and non-contact subspaces
 
-    :param type env: Description of parameter `env`.
-    :param type hole_pos_error_range: Description of parameter `hole_pos_error_range`.
-    :param type hole_rot_error_range: Description of parameter `hole_rot_error_range`.
-    :param type spaces_idx_list: Description of parameter `spaces_idx_list`.
-    :attr spaces_idx_list:
+    :param list spaces_idx_list: the list of action indices corresponding to
+                                 each subspaces. see utils/gym/DynamicDiscrete
+                                 for more detail
 
     """
     def __init__(self, env,
@@ -69,13 +68,25 @@ class SetMujocoModelWrapper(Wrapper):
         print(self.model_wrapper.get_joint_damping())
 
 class InitialPoseWrapper(Wrapper):
+    """Change the initial pose (reset pose) of the peg
+
+    :param np.array(3) p0: Initial position
+    :param np.array(3) r0: Initial rotation vector
+
+    Position and rotaion vector is defined relative to the task frame
+    """
     def __init__(self, env, p0, r0):
         super().__init__(env)
         env.unwrapped.initial_pos_mean = p0
         env.unwrapped.initial_rot_mean = r0
 
-# change hole pose
 class HolePoseWrapper(Wrapper):
+    """Change hole pose in the mujoco xml model.
+
+    :param np.array(3) hole_body_pos: the position of the "hole" body object in the xml model
+    :param np.array(4) hole_body_quat: orientation (in quaternion)
+
+    """
     def __init__(self, env, hole_body_pos, hole_body_quat):
         super().__init__(env)
         self.model_wrapper = MujocoModelWrapper(env.model)

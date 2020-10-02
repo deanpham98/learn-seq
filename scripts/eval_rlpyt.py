@@ -56,27 +56,28 @@ def plot_progress(run_path_list):
         axs[i].legend(legend)
     plt.show()
 
+# return the evaluation environments. The policy will be tested on each environment
 def eval_envs(config):
     envs = []
-    # no hole pose error
+    # test when there is no hole pose error
     env_config = deepcopy(config.env_config)
     env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
     env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
     envs.append(gym_make(**env_config))
 
-    # fix initial state
-    # wrapper = InitialPoseWrapper
-    # wrapper_kwargs = dict(
-    #     p0 = np.array([0, -0.0, 0.01]),
-    #     r0 = np.array([0., 0, 0])
-    # )
-    # env_config = append_wrapper(config.env_config,
-    #         wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
-    # env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
-    # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-    # envs.append(gym_make(**env_config))
+    # test for fix initial state
+    wrapper = InitialPoseWrapper
+    wrapper_kwargs = dict(
+        p0 = np.array([0, -0.0, 0.01]),
+        r0 = np.array([0., 0, 0])
+    )
+    env_config = append_wrapper(config.env_config,
+            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
+    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    envs.append(gym_make(**env_config))
 
-    # change hole pose
+    # change hole pose in the mujoco environment
     rot = np.array([0, -60*np.pi/180, 0])
     hole_body_quat = integrate_quat(np.array([1., 0,0 ,0]), rot, 1)
     wrapper = HolePoseWrapper
@@ -89,6 +90,7 @@ def eval_envs(config):
 
     return envs
 
+# run the agent in a particular environment once
 def run_agent_single(agent, env, render=False):
     seq = []
     strat = []
@@ -117,6 +119,7 @@ def run_agent_single(agent, env, render=False):
 
     return seq, strat, info["success"], episode_rew
 
+# run the agent in a particular env for N episodes
 def run_agent(agent, env, eps, render=False):
     no_success = 0
     for i in range(eps):
@@ -132,6 +135,8 @@ def run_agent(agent, env, eps, render=False):
     print("success_rate {}".format(float(no_success)/eps))
     env.close()
 
+# initialize the agent with the trained model, generate evaluation envs and
+# run the evaluation
 def evaluate(run_path_list, config, eval_eps=10, render=False):
     for run_path in run_path_list:
         with open(os.path.join(run_path, "params.json"), "r") as f:
