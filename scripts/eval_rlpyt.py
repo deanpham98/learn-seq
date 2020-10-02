@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_config
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
 from learn_seq.utils.gym import append_wrapper
-from learn_seq.utils.mujoco import integrate_quat
-from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper
+from learn_seq.utils.mujoco import integrate_quat, quat_error
+from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper, FixedHolePoseErrorWrapper
 from learn_seq.controller.hybrid import StateRecordHybridController
 from learn_seq.ros.logger import basic_logger
 
@@ -89,12 +89,44 @@ def eval_envs(config):
     return envs
 
 def real_eval_envs(config):
+    p0 = np.array([0, 0.003, 0.01])
+    r0 = np.array([3np.pi/180, 0, 0])
     envs = []
-    # fixed hole pose error, fixed initial state
+    # no hole pose error, fixed initial state
     env_config = deepcopy(config.env_config)
     env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
     env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
+
+    wrapper = InitialPoseWrapper
+    wrapper_kwargs = dict(
+        p0 = p0,
+        r0 = r0
+    )
+    env_config = append_wrapper(env_config,
+            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
     envs.append(gym_make(**env_config))
+
+    # larger hole pose error
+    env_config = deepcopy(config.env_config)
+    env_config["wrapper"] = FixedHolePoseErrorWrapper
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error = 0.001,
+        hole_rot_error = np.pi / 180
+    )
+
+    wrapper = InitialPoseWrapper
+    wrapper_kwargs = dict(
+        p0 = p0,
+        r0 = r0
+    )
+    env_config = append_wrapper(env_config,
+            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    envs.append(gym_make(**env_config))
+    return envs
 
 def run_agent_single(agent, env, render=False):
     seq = []
@@ -103,6 +135,9 @@ def run_agent_single(agent, env, render=False):
     done = False
     obs = env.reset()
     print("intial pos: {}".format(env.ros_interface.get_ee_pose()))
+    print("hole pos error: {}".format(env.tf_pos - env.hole_pos))
+    print("hole pos error: {}".format(quat_error(env.hole_quat, env.tf_pos)))
+
     while not done:
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
@@ -122,12 +157,16 @@ def run_agent_single(agent, env, render=False):
 
 # run the agent in a particular env for N episodes
 def run_agent(agent, env, eps, render=False):
+    print(env.initial_pos_range)
+    print(env.initial_rot_range)
+    print(env.initial_pos_mean)
+    print(env.initial_rot_mean)
     no_success = 0
     for i in range(eps):
-        seq, strat, suc, rew = run_agent_single(agent, env, render=render)
-        # episode info
         print("------")
         print("Episode {}".format(i))
+        seq, strat, suc, rew = run_agent_single(agent, env, render=render)
+        # episode info
         print("sequence idx: {}".format(seq))
         print("sequence name: {}".format(strat))
         print("success: {}".format(suc))
@@ -155,7 +194,11 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         agent = agent_class(initial_model_state_dict=state_dict,
                             model_kwargs=model_kwargs)
         #
-        eval_env_list = eval_envs(config)
+        if "Real" in config.env_config["id"]:
+            eval_env_list = real_eval_envs(config)
+        else:
+            eval_env_list = eval_envs(config)
+
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:
             run_agent(agent, env, eps=eval_eps, render=render)
