@@ -7,7 +7,7 @@ from learn_seq.envs.wrapper import StructuredActionSpaceWrapper
 from learn_seq.rlpyt.ppo_agent import PPOStructuredInsertionAgent
 from learn_seq.controller.hybrid import StateRecordHybridController
 
-#
+#----- primitive params
 SPEED_FACTOR_RANGE = [0.01, 0.05]
 FORCE_THRESH_RANGE = [5, 10]
 TORQUE_THRESH_RANGE = [0.2, 1]
@@ -17,18 +17,14 @@ INSERTION_FORCE_RANGE = [10., 25]
 KD_ADMITTANCE_ROT_RANGE = [0.01, 0.15]
 SAFETY_FORCE = 15.
 SAFETY_TORQUE = 2.
-
+# controller gains
 KP_DEFAULT = [1000.]*3 + [60.]*3
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 
-# no discretization
-NO_QUANTIZATION = 4
-PRIMITIVES_PER_TYPE = 16
-
 # TODO change in environment
 HOLE_DEPTH = 0.02
-DEPTH_THRESH = 0.95
+DEPTH_THRESH = 0.95 # the goal is achieved when insertion depth > HOLE_DEPTH * DEPTH_THRESH
 TRAINING_STEP = 1000000
 SEED = 18
 
@@ -227,8 +223,9 @@ agent_config = {
 sampler_config = {
     "sampler_class": SerialSampler,
     "sampler_kwargs":{
-        "batch_T": 256, # no samples per iteration
-        "batch_B": 1, # no environments, this will be divided equally to no. parallel envs
+        "batch_T": 256, # number of samples per environment per iteration
+        "batch_B": 1,   # number of parallel environments,
+                        # this will be divided equally to n_parallel
     }
 }
 
@@ -244,7 +241,7 @@ algo_config = {
 }
 
 runner_config = {
-    "n_parallel": 4,  # use parallel workers to step environment
+    "n_parallel": 4,  # number of CPU cores used for paralellism
     "runner_kwargs": {
         "n_steps": TRAINING_STEP,
         "seed": 15,
