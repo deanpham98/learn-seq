@@ -7,7 +7,10 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_config
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
-from learn_seq.envs.wrapper import InitialPoseWrapper
+from learn_seq.utils.gym import append_wrapper
+from learn_seq.utils.mujoco import integrate_quat
+from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper
+from learn_seq.controller.hybrid import StateRecordHybridController
 from learn_seq.ros.logger import basic_logger
 
 def plot(x_idx, y_idx, data, ax=None):
@@ -62,17 +65,14 @@ def eval_envs(config):
     envs.append(gym_make(**env_config))
 
     # fix initial state
-    # env_config = deepcopy(config.env_config)
-    # wrapper = env_config["wrapper"]
-    # env_config["wrapper"] = []
-    # env_config["wrapper"].append(wrapper)
-    # env_config["wrapper"].append(InitialPoseWrapper)
-    #
-    # wrapper_kwargs = []
-    # wrapper_kwargs.append(env_config["wrapper_kwargs"])
-    # wrapper_kwargs.append(dict(p0=np.array([0, 0.0, 0.005]), r0=[0*np.pi/180, 0, 0]))
-    # env_config["wrapper_kwargs"] = wrapper_kwargs
-    # env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    # wrapper = InitialPoseWrapper
+    # wrapper_kwargs = dict(
+    #     p0 = np.array([0, -0.0, 0.01]),
+    #     r0 = np.array([0., 0, 0])
+    # )
+    # env_config = append_wrapper(config.env_config,
+    #         wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    # env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
     # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
 
     # change hole pose in the mujoco environment
@@ -88,7 +88,14 @@ def eval_envs(config):
 
     return envs
 
-# run the agent in a particular environment once
+def real_eval_envs(config):
+    envs = []
+    # fixed hole pose error, fixed initial state
+    env_config = deepcopy(config.env_config)
+    env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
+    env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
+    envs.append(gym_make(**env_config))
+
 def run_agent_single(agent, env, render=False):
     seq = []
     strat = []
