@@ -2,12 +2,13 @@ from copy import deepcopy
 import numpy as np
 from torch.nn import ReLU
 from rlpyt.algos.pg.ppo import PPO
-from rlpyt.samplers.serial.sampler import SerialSampler
+from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
 from learn_seq.envs.wrapper import StructuredActionSpaceWrapper
 from learn_seq.rlpyt.ppo_agent import PPOStructuredInsertionAgent
 from learn_seq.controller.hybrid import StateRecordHybridController
 
 #----- primitive params
+NO_QUANTIZATION = 2
 SPEED_FACTOR_RANGE = [0.01, 0.05]
 FORCE_THRESH_RANGE = [5, 10]
 TORQUE_THRESH_RANGE = [0.2, 1]
@@ -30,13 +31,13 @@ SEED = 18
 
 # ----- Primitive config
 primitive_list = []
-# move down until contact
-for i in range(NO_QUANTIZATION):
-    for j in range(NO_QUANTIZATION):
-        dv = (SPEED_FACTOR_RANGE[1] - SPEED_FACTOR_RANGE[0])/NO_QUANTIZATION
+# move down until contact (16 primitives)
+for i in range(4):
+    for j in range(4):
+        dv = (SPEED_FACTOR_RANGE[1] - SPEED_FACTOR_RANGE[0])/4
         v = SPEED_FACTOR_RANGE[0] + dv/2 + i*dv
 
-        dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / NO_QUANTIZATION
+        dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / 4
         fs = FORCE_THRESH_RANGE[0] + dfs/2 + j*dv
 
         param = dict(u=np.array([0, 0, -1, 0, 0, 0]),
@@ -49,14 +50,14 @@ for i in range(NO_QUANTIZATION):
 
 # displacement free space
 vd = 0.05
-for i in range(3):
+for i in range(3):  # x, y, z translation
     move_dir = np.zeros(6)
-    for j in range(2):
-        dp = (TRANSLATION_DISPLACEMENT_RANGE[1] - TRANSLATION_DISPLACEMENT_RANGE[0])/2
+    for j in range(NO_QUANTIZATION):
+        dp = (TRANSLATION_DISPLACEMENT_RANGE[1] - TRANSLATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
         p = TRANSLATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i] = 1
         param = dict(u=move_dir,
-                     s=v, fs=fs,
+                     s=vd, fs=SAFETY_FORCE,
                      ft=np.zeros(6),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -68,10 +69,10 @@ for i in range(3):
         primitive_list.append(("displacement", deepcopy(param)))
 
 
-for i in range(3):
+for i in range(3):  # x, y, z rotation
     move_dir = np.zeros(6)
-    for j in range(2):
-        dp = (ROTATION_DISPLACEMENT_RANGE[1] - ROTATION_DISPLACEMENT_RANGE[0])/2
+    for j in range(NO_QUANTIZATION):
+        dp = (ROTATION_DISPLACEMENT_RANGE[1] - ROTATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
@@ -91,14 +92,14 @@ no_free_actions = len(primitive_list)
 free_action_idx = list(range(no_free_actions))  # [0, 1, ... N-1]
 
 # slide/rotate until contact
-for i in range(2):
+for i in range(2):  # x, y translation
     move_dir = np.zeros(6)
-    for j in range(2):
-        for k in range(2):
+    for j in range(NO_QUANTIZATION):
+        for k in range(NO_QUANTIZATION):
             dv = (SPEED_FACTOR_RANGE[1] - SPEED_FACTOR_RANGE[0])/NO_QUANTIZATION
             v = SPEED_FACTOR_RANGE[0] + dv/2 + j*dv
 
-            dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / 2
+            dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / NO_QUANTIZATION
             fs = FORCE_THRESH_RANGE[0] + dfs/2 + k*dv
             move_dir[i] = 1
 
@@ -112,14 +113,14 @@ for i in range(2):
             param["u"][i] = -1
             primitive_list.append(("move2contact", deepcopy(param)))
 
-for i in range(3):
+for i in range(3):  # x, y, z rotation
     move_dir = np.zeros(6)
-    for j in range(2):
-        for k in range(2):
+    for j in range(NO_QUANTIZATION):
+        for k in range(NO_QUANTIZATION):
             dv = (SPEED_FACTOR_RANGE[1] - SPEED_FACTOR_RANGE[0])/NO_QUANTIZATION
             v = SPEED_FACTOR_RANGE[0] + dv/2 + j*dv
 
-            dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / 2
+            dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / NO_QUANTIZATION
             fs = FORCE_THRESH_RANGE[0] + dfs/2 + k*dv
 
             move_dir[i+3] = 1
@@ -135,10 +136,10 @@ for i in range(3):
 
 # displacement on plane
 vd = 0.02
-for i in range(2):
+for i in range(2):  # x, y tranlation
     move_dir = np.zeros(6)
-    for j in range(2):
-        dp = (TRANSLATION_DISPLACEMENT_RANGE[1] - TRANSLATION_DISPLACEMENT_RANGE[0])/2
+    for j in range(NO_QUANTIZATION):
+        dp = (TRANSLATION_DISPLACEMENT_RANGE[1] - TRANSLATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
         p = TRANSLATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i] = 1
         param = dict(u=move_dir,
@@ -153,10 +154,10 @@ for i in range(2):
         param["u"][i] = -1
         primitive_list.append(("displacement", deepcopy(param)))
 
-for i in range(3):
+for i in range(3):  # x, y, z rotation
     move_dir = np.zeros(6)
-    for j in range(2):
-        dp = (ROTATION_DISPLACEMENT_RANGE[1] - ROTATION_DISPLACEMENT_RANGE[0])/2
+    for j in range(NO_QUANTIZATION):
+        dp = (ROTATION_DISPLACEMENT_RANGE[1] - ROTATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
@@ -174,24 +175,24 @@ for i in range(3):
 # admittance
 stiffness =[500, 500, 500, 50, 50, 50.]
 damping = [10.]*6
-for j in range(NO_QUANTIZATION):
-    for k in range(NO_QUANTIZATION):
-        dkd = (KD_ADMITTANCE_ROT_RANGE[1] - KD_ADMITTANCE_ROT_RANGE[0])/NO_QUANTIZATION
+for j in range(4):
+    for k in range(4):
+        dkd = (KD_ADMITTANCE_ROT_RANGE[1] - KD_ADMITTANCE_ROT_RANGE[0])/4
         kd = KD_ADMITTANCE_ROT_RANGE[0] + dkd/2 + j*dkd
 
-        df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / NO_QUANTIZATION
+        df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / 4
         f = INSERTION_FORCE_RANGE[0] + df/2 + k*df
 
         param = dict(kd_adt=np.array([0.]*3 + [kd]*3),
                      ft=np.array([0, 0, -f, 0, 0, 0]),
                      depth_thresh=-HOLE_DEPTH*DEPTH_THRESH,
-                     kp=KP_DEFAULT,
-                     kd=KD_DEFAULT,
+                     kp=stiffness,
+                     kd=damping,
                      timeout=TIMEOUT)
         primitive_list.append(("admittance", param))
 
-no_contact_actions = len(primitive_list) - no_free_actions
-contact_action_idx = list(range(no_free_actions, no_free_actions+no_contact_actions))
+no_contact_actions = len(primitive_list)
+contact_action_idx = list(range(no_contact_actions))
 sub_spaces = [free_action_idx, contact_action_idx]
 
 # ----- train config
@@ -221,11 +222,11 @@ agent_config = {
 }
 
 sampler_config = {
-    "sampler_class": SerialSampler,
+    "sampler_class": CpuSampler,
     "sampler_kwargs":{
-        "batch_T": 256, # number of samples per environment per iteration
-        "batch_B": 1,   # number of parallel environments,
-                        # this will be divided equally to n_parallel
+        "batch_T": 256, # no samples per iteration
+        "batch_B": 4, # no environments, this will be divided equally to no. parallel envs
+        "max_decorrelation_steps": 10
     }
 }
 
@@ -244,7 +245,7 @@ runner_config = {
     "n_parallel": 4,  # number of CPU cores used for paralellism
     "runner_kwargs": {
         "n_steps": TRAINING_STEP,
-        "seed": 15,
+        "seed": SEED,
         "log_interval_steps": 2048,
     }
 }
