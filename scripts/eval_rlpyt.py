@@ -29,10 +29,9 @@ def print_key(d):
         print("{}\t{}".format(i, k))
 
 def plot_progress(run_path_list):
-    run_id = []
     progress_data = []
     x_idx = 4
-    plot_ids = [36, 39, 41, 16]
+    plot_ids = [36, 31, 41, 16]     # insertion_depth, success_rate, loss, reward
     axs = []
     for i in plot_ids:
         fig, ax = plt.subplots()
@@ -41,13 +40,12 @@ def plot_progress(run_path_list):
     for run_dir in run_path_list:
         with open(os.path.join(run_dir, "params.json"), "r") as f:
             config = json.load(f)
-            run_id.append(config["run_ID"])
-        legend.append(run_id)
+            legend.append(config["run_ID"])
 
         # train progress
         progress_path = os.path.join(run_dir, "progress.csv")
         progress_data = read_csv(progress_path)
-        # print_key(progress_data)
+        print_key(progress_data)
         # plot
         for i, idx in enumerate(plot_ids):
             plot(x_idx, idx, progress_data, axs[i])
