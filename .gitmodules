@@ -1,3 +1,3 @@
 [submodule "mujoco/franka_sim"]
 	path = mujoco/franka_sim
-	url = git@github.com:nvuong21/franka_sim.git
+	url = https://github.com/nvuong21/franka_sim.git
