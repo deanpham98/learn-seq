@@ -9,7 +9,7 @@ from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_confi
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
 from learn_seq.utils.gym import append_wrapper
 from learn_seq.utils.mujoco import integrate_quat, quat_error
-from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper, FixedHolePoseErrorWrapper
+from learn_seq.envs.wrapper import InitialPoseWrapper, FixedHolePoseErrorWrapper
 from learn_seq.controller.hybrid import StateRecordHybridController
 from learn_seq.ros.logger import basic_logger
 
@@ -89,8 +89,8 @@ def eval_envs(config):
     return envs
 
 def real_eval_envs(config):
-    p0 = np.array([0, 0.003, 0.01])
-    r0 = np.array([3np.pi/180, 0, 0])
+    p0 = np.array([0, 0.001, 0.01])
+    r0 = np.array([1*np.pi/180, 0, 0])
     envs = []
     # no hole pose error, fixed initial state
     env_config = deepcopy(config.env_config)
@@ -136,7 +136,7 @@ def run_agent_single(agent, env, render=False):
     obs = env.reset()
     print("intial pos: {}".format(env.ros_interface.get_ee_pose()))
     print("hole pos error: {}".format(env.tf_pos - env.hole_pos))
-    print("hole pos error: {}".format(quat_error(env.hole_quat, env.tf_pos)))
+    print("hole pos error: {}".format(quat_error(env.hole_quat, env.tf_quat)))
 
     while not done:
         pa = torch.tensor(np.zeros(6))
@@ -157,10 +157,10 @@ def run_agent_single(agent, env, render=False):
 
 # run the agent in a particular env for N episodes
 def run_agent(agent, env, eps, render=False):
-    print(env.initial_pos_range)
-    print(env.initial_rot_range)
-    print(env.initial_pos_mean)
-    print(env.initial_rot_mean)
+    print("initial pos range {}".format(env.initial_pos_range))
+    print("initial rot range {}".format(env.initial_rot_range))
+    print("initial pos mean {}".format(env.initial_pos_mean))
+    print("initial rot mean {}".format(env.initial_rot_mean))
     no_success = 0
     for i in range(eps):
         print("------")

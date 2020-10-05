@@ -9,10 +9,14 @@ from learn_seq.rlpyt.ppo_agent import PPOStructuredRealAgent
 from learn_seq.utils.mujoco import mat2quat, mul_quat
 
 # peg transformation matrix
-T_HOLE = np.array([0.995478,0.0930097,-0.018803,0,\
-                   0.0930499,-0.995651,0.00127024,0,\
-                   -0.0186034,-0.00301417,-0.999822,0,\
-                   0.529588,-0.0857657,0.150818,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.995478,0.0930097,-0.018803,0,\
+#                    0.0930499,-0.995651,0.00127024,0,\
+#                    -0.0186034,-0.00301417,-0.999822,0,\
+#                    0.529588,-0.0857657,0.150818,1]).reshape((4, 4)).T
+# square with ft sensor
+T_HOLE = np.array([0.99911,-0.0385333,0.0165787,0,-0.0382766,-0.999137,-0.0155349,0,0.0171634,0.0148868,-0.999742,0,\
+                   0.530158,0.0819677,0.137748,1]).reshape((4, 4)).T
+
 hole_pos = T_HOLE[:3, 3]
 hole_rot = T_HOLE[:3, :3]
 hole_quat = mat2quat(hole_rot)
@@ -21,7 +25,7 @@ qx = np.array([np.cos(np.pi/2), np.sin(np.pi/2), 0, 0])
 hole_quat = mul_quat(hole_quat, qx)
 
 #
-SPEED_FACTOR_RANGE = [0.01, 0.05]
+SPEED_FACTOR_RANGE = [0.01, 0.02]
 FORCE_THRESH_RANGE = [5, 10]
 TORQUE_THRESH_RANGE = [0.2, 1]
 TRANSLATION_DISPLACEMENT_RANGE = [0.001, 0.005]
@@ -66,7 +70,7 @@ for i in range(NO_QUANTIZATION):
         primitive_list.append(("move2contact", param))
 
 # displacement free space
-vd = 0.05
+vd = 0.005
 for i in range(3):
     move_dir = np.zeros(6)
     for j in range(2):
@@ -152,7 +156,7 @@ for i in range(3):
             primitive_list.append(("move2contact", deepcopy(param)))
 
 # displacement on plane
-vd = 0.02
+vd = 0.005
 for i in range(2):
     move_dir = np.zeros(6)
     for j in range(2):
@@ -200,7 +204,7 @@ for j in range(NO_QUANTIZATION):
         df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / NO_QUANTIZATION
         f = INSERTION_FORCE_RANGE[0] + df/2 + k*df
 
-        param = dict(kd_adt=np.array([0.]*3 + [kd]*3),
+        param = dict(kd_adt=np.array([0.005]*3 + [kd]*3),
                      ft=np.array([0, 0, -f, 0, 0, 0]),
                      depth_thresh=-HOLE_DEPTH*DEPTH_THRESH,
                      kp=stiffness,
@@ -214,7 +218,7 @@ sub_spaces = [free_action_idx, contact_action_idx]
 
 # ----- train config
 env_config = {
-    "id": "learn_seq:MujocoInsertionEnv-v0",
+    "id": "learn_seq:RealInsertionEnv-v0",
     "primitive_list": primitive_list,
     "hole_pos": hole_pos,
     "hole_quat": hole_quat,
@@ -233,7 +237,7 @@ env_config = {
 }
 
 agent_config = {
-    "agent_class": PPOStructuredInsertionAgent,
+    "agent_class": PPOStructuredRealAgent,
     "model_kwargs": {
         "hidden_sizes": None,
         #"hidden_nonlinearity": None,
