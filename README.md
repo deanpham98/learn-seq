@@ -34,20 +34,20 @@ real-robot.
 - To create a training experiment named $EXP_NAME, first create a directory in the `exp` directory, then create a `config.py` file to setup the configurations (primitives, algorithm, ...). Refer to the `exp/example_rlpyt` for more detail.
 - To run the training experiment for the round peg-in-hole insertion environment using cpus only
 
-        python scripts/train_rlpyt -n $EXP_NAME -e round
+        python scripts/train_rlpyt.py -n $EXP_NAME -e round
     The training progress, trained model, and training info will be stored in the subdirectory of the $EXP_NAME directory.
 
 - To plot the training performance of all trials in an experiment:
 
-        python scripts/eval_rlpyt -n $EXP_NAME --plot-only
+        python scripts/eval_rlpyt.py -n $EXP_NAME --plot-only
 
 - To run the evaluation of all trials in an experiment for 5 episodes, and render the progress, run
 
-        python scripts/eval_rlpyt -n $EXP_NAME -e 5 --render
+        python scripts/eval_rlpyt.py -n $EXP_NAME -e 5 --render
 
 - To run the evaluation for a single trial in an experiment, add `-rn $RUN_NAME` at the end
 
-        python scripts/eval_rlpyt -n $EXP_NAME -e 5 --render -rn $RUN_NAME
+        python scripts/eval_rlpyt.py -n $EXP_NAME -e 5 --render -rn $RUN_NAME
 
 ## TODO
 - adjust `round_hole_generation.py` so that the `round_pih.xml` can include the generated file
