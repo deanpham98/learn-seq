@@ -37,7 +37,7 @@ def gym_make(*args, info_example=None, wrapper=None, wrapper_kwargs=None, **kwar
         elif isinstance(wrapper, list):
             for w, config in zip(wrapper, wrapper_kwargs):
                 env = w(env, **config)
-            return GymEnvWrapper(EnvInfoWrapper(env, info_example))            
+            return GymEnvWrapper(EnvInfoWrapper(env, info_example))
         else:
             return GymEnvWrapper(
                         EnvInfoWrapper(
@@ -49,7 +49,7 @@ def gym_make(*args, info_example=None, wrapper=None, wrapper_kwargs=None, **kwar
 def load_agent_state_dict(data_path):
     model_path = os.path.join(data_path, "params.pkl")
     if torch.cuda.is_available():
-        model_data = torch.load(model_path)
+        model_data = torch.load(model_path, map_location=torch.device("cuda:0"))
     else:
         model_data = torch.load(model_path, map_location=torch.device("cpu"))
     agent_state_dict = model_data["agent_state_dict"]
