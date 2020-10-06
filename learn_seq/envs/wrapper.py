@@ -80,21 +80,7 @@ class InitialPoseWrapper(Wrapper):
         env.unwrapped.initial_pos_mean = p0
         env.unwrapped.initial_rot_mean = r0
 
-class HolePoseWrapper(Wrapper):
-    """Change hole pose in the mujoco xml model.
-
-    :param np.array(3) hole_body_pos: the position of the "hole" body object in the xml model
-    :param np.array(4) hole_body_quat: orientation (in quaternion)
-
-    """
-    def __init__(self, env, hole_body_pos, hole_body_quat):
-        super().__init__(env)
-        self.model_wrapper = MujocoModelWrapper(env.model)
-        self.model_wrapper.set_hole_pose(hole_body_pos, hole_body_quat)
-        p, q, _ = env.unwrapped._hole_pose_from_model()
-        env.unwrapped.set_task_frame(p, q)
-
-class FixedHolePoseErrorWrapper(Wrapper):
+class FixedHolePoseErrorWrapper(StructuredActionSpaceWrapper):
     """Vary the hole position virtually, and assume the `hole_pos` and
     `hole_quat` attribute of environment is the true hole pose.
     Use for training with RL
@@ -106,8 +92,9 @@ class FixedHolePoseErrorWrapper(Wrapper):
     """
     def __init__(self, env,
                  hole_pos_error,
-                 hole_rot_error):
-        super().__init__(env)
+                 hole_rot_error,
+                 spaces_idx_list):
+        super().__init__(env, hole_pos_error, hole_rot_error, spaces_idx_list)
         self.pos_error = hole_pos_error
         self.rot_error = hole_rot_error
         # true hole pose

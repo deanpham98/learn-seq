@@ -89,31 +89,34 @@ def eval_envs(config):
     return envs
 
 def real_eval_envs(config):
-    p0 = np.array([0, 0.001, 0.01])
-    r0 = np.array([1*np.pi/180, 0, 0])
+    # p0 = np.array([0, 0.001, 0.01])
+    # r0 = np.array([1*np.pi/180, 0, 0])
+    p0 = np.array([0, 0.0, 0.01])
+    r0 = np.array([0*np.pi/180, 0, 0])
     envs = []
-    # no hole pose error, fixed initial state
-    env_config = deepcopy(config.env_config)
-    env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
-    env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
-
-    wrapper = InitialPoseWrapper
-    wrapper_kwargs = dict(
-        p0 = p0,
-        r0 = r0
-    )
-    env_config = append_wrapper(env_config,
-            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
-    env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
-    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-    envs.append(gym_make(**env_config))
+    # # no hole pose error, fixed initial state
+    # env_config = deepcopy(config.env_config)
+    # env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
+    # env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
+    #
+    # wrapper = InitialPoseWrapper
+    # wrapper_kwargs = dict(
+    #     p0 = p0,
+    #     r0 = r0
+    # )
+    # env_config = append_wrapper(env_config,
+    #         wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    # env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    # envs.append(gym_make(**env_config))
 
     # larger hole pose error
     env_config = deepcopy(config.env_config)
     env_config["wrapper"] = FixedHolePoseErrorWrapper
     env_config["wrapper_kwargs"] = dict(
         hole_pos_error = 0.001,
-        hole_rot_error = np.pi / 180
+        hole_rot_error = np.pi / 180,
+        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
 
     wrapper = InitialPoseWrapper
@@ -123,8 +126,10 @@ def real_eval_envs(config):
     )
     env_config = append_wrapper(env_config,
             wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
-    env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
-    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    # env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
+    env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
     envs.append(gym_make(**env_config))
     return envs
 
@@ -134,7 +139,7 @@ def run_agent_single(agent, env, render=False):
     episode_rew = 0
     done = False
     obs = env.reset()
-    print("intial pos: {}".format(env.ros_interface.get_ee_pose()))
+    print("intial pos: {}".format(env.ros_interface.get_ee_pose(frame_pos=env.tf_pos, frame_quat=env.tf_quat)))
     print("hole pos error: {}".format(env.tf_pos - env.hole_pos))
     print("hole pos error: {}".format(quat_error(env.hole_quat, env.tf_quat)))
 
@@ -145,6 +150,7 @@ def run_agent_single(agent, env, render=False):
         action = agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
         action = action.action
         a = np.array(action)
+        print(env.unwrapped.primitive_list[a])
         if render:
             obs, reward, done, info = env.unwrapped.step(a, render=render)
         else:
