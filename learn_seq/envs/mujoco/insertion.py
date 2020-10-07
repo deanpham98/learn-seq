@@ -21,7 +21,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
                  peg_rot_range,
                  initial_pos_range,
                  initial_rot_range,
-                 depth_thresh=0.95,
+                 goal_thresh=1e-3,
                  controller_class=HybridController,
                  **controller_kwargs
                  ):
@@ -30,7 +30,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         model_path = os.path.join(mujoco_path, xml_model_name)
         MujocoEnv.__init__(self, model_path)
         self.robot_state = RobotState(self.sim, "end_effector")
-        self.depth_thresh = depth_thresh
+        self.goal_thresh = goal_thresh
         # init robot position for reset
         self.init_qpos = np.array([0, -np.pi/4, 0, -3 * np.pi/4, 0, np.pi/2, np.pi / 4, 0.015, 0.015])
         self._eps_time = 0
@@ -111,21 +111,44 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         no_primitives = len(self.primitive_list)
         self.action_space = gym.spaces.Discrete(no_primitives)
 
+    # def _reward_func(self, obs, t_exec):
+    #     pos = obs[:3]
+    #     # assume the z axis align with insert direction
+    #     dist = obs[:3] - self.target_pos
+    #     rwd_near = np.min(np.exp(-dist[:2]**2 / 0.01**2)) - 1
+    #
+    #     # rwd for insertion
+    #     wi = 2
+    #     rwd_insert = wi * np.exp(-dist[2]**2/0.05**2) - wi
+    #
+    #     # limit the peg inside a box around the goal
+    #     rwd_inside = 0.
+    #     if self._is_limit_reach(pos):
+    #         rwd_inside = -50.
+    #
+    #     # rwd_short_length = -3.
+    #     rwd_short_length = -t_exec/4
+    #
+    #     rwd_terminal = 0
+    #     if self._is_success(pos):
+    #         rwd_terminal = 5.
+    #
+    #     r = rwd_near +rwd_inside +rwd_insert +rwd_short_length +rwd_terminal
+    #     return r
+
     def _reward_func(self, obs, t_exec):
         pos = obs[:3]
         # assume the z axis align with insert direction
         dist = obs[:3] - self.target_pos
-        rwd_near = np.min(np.exp(-dist[:2]**2 / 0.01**2)) - 1
-
-        # rwd for insertion
-        wi = 2
-        rwd_insert = wi * np.exp(-dist[2]**2/0.05**2) - wi
+        d = np.linalg.norm(dist)
+        wi=2
+        rwd_goal = wi * np.exp(-d**2/0.02**2) - wi
 
         # limit the peg inside a box around the goal
-        rwd_inside = 0.
-        if self._is_limit_reach(pos):
-            rwd_inside = -50.
-
+        # rwd_inside = 0.
+        # if self._is_limit_reach(pos):
+        #     rwd_inside = -50.
+        #
         # rwd_short_length = -3.
         rwd_short_length = -t_exec/4
 
@@ -133,18 +156,20 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         if self._is_success(pos):
             rwd_terminal = 5.
 
-        r = rwd_near +rwd_inside +rwd_insert +rwd_short_length +rwd_terminal
+        r = rwd_goal+rwd_short_length +rwd_terminal
         return r
 
     # TODO check also for rotation
     def _is_limit_reach(self, p):
         return np.max(np.abs(p[:2] - self.target_pos[:2])) > self.obs_up_limit[0]
 
+    # def _is_success(self, p):
+    #     pos_thresh = 0.01
+    #     isDepthReach = p[2] < self.target_pos[2]*self.depth_thresh
+    #     isInHole = np.linalg.norm(p[:2] - self.target_pos[:2]) < pos_thresh
+    #     return (isDepthReach and isInHole)
     def _is_success(self, p):
-        pos_thresh = 0.01
-        isDepthReach = p[2] < self.target_pos[2]*self.depth_thresh
-        isInHole = np.linalg.norm(p[:2] - self.target_pos[:2]) < pos_thresh
-        return (isDepthReach and isInHole)
+        return np.linalg.norm(p[:3] - self.target_pos[:3]) < self.goal_thresh
 
     def viewer_setup(self):
         self.viewer.cam.distance=0.43258
