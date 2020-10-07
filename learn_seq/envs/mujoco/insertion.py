@@ -171,8 +171,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         info = {"success": isSuccess,
                 "insert_depth": obs[2]}
 
-        # return self._normalize_obs(obs), reward, done, info
-        return obs, reward, done, info
+        return self._normalize_obs(obs), reward, done, info
+        # return obs, reward, done, info
 
     def reset_to(self, p, q):
         self._reset_sim()
@@ -181,7 +181,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
                      kp=self.kp_init, kd=self.kd_init)
         self.container.run("move2target", param)
         obs = self._get_obs()
-        return obs
+        return self._normalize_obs(obs)
+        # return obs
 
     def set_task_frame(self, p, q):
         InsertionBaseEnv.set_task_frame(self, p, q)
