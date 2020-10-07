@@ -114,15 +114,17 @@ class QuaternionObservationWrapper(BaseInsertionWrapper):
         env.unwrapped.observation_space = gym.spaces.Box(obs_low, obs_high)
         env.observation_space = gym.spaces.Box(obs_low, obs_high)
         super().__init__(env)
-        tf_pos, tf_quat = self.get_task_frame()
-        _, self.q_prev = self.robot_state.get_pose(tf_pos, tf_quat)
 
     def observation(self, obs):
         tf_pos, tf_quat = self.get_task_frame()
         _, q = self.robot_state.get_pose(tf_pos, tf_quat)
+        if q.dot(self.q_prev) < 0:
+            q = -q
+        self.q_prev = q.copy()
         return np.hstack((obs[:3], q))
 
     def reset(self, **kwargs):
+        self.q_prev = self.env.unwrapped.target_quat
         observation = self.env.reset(**kwargs)
         return self.observation(observation)
 
