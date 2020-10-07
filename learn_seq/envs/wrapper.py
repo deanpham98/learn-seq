@@ -121,7 +121,7 @@ class QuaternionObservationWrapper(BaseInsertionWrapper):
         if q.dot(self.q_prev) < 0:
             q = -q
         self.q_prev = q.copy()
-        return np.hstack((obs[:3], q))
+        return np.hstack((obs[:3], q, obs[6:]))
 
     def reset(self, **kwargs):
         self.q_prev = self.env.unwrapped.target_quat
