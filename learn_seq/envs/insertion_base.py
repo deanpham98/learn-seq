@@ -69,6 +69,9 @@ class InsertionBaseEnv(gym.Env):
         obs = self.reset_to(p0, q0)
         return obs
 
+    def get_task_frame(self):
+        return self.tf_pos.copy(), self.tf_quat.copy()
+
     def step(self):
         raise NotImplementedError
 

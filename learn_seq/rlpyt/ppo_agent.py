@@ -43,26 +43,26 @@ class PPOStructuredInsertionModel(torch.nn.Module):
         ):
         super().__init__()
         self._obs_ndim = len(observation_shape)
-        input_size = int(np.prod(observation_shape))
+        self.input_size = int(np.prod(observation_shape))
         hidden_sizes = hidden_sizes or DEFAULT_HIDDEN_LAYERS
         self.sub_indices = sub_indices
         self.n = n_actions
 
         self.pi_free = MlpModel(
-            input_size=input_size,
+            input_size=self.input_size,
             hidden_sizes=hidden_sizes,
             output_size=len(sub_indices[0]),
             nonlinearity=hidden_nonlinearity,
         )
         self.pi_con = MlpModel(
-            input_size=input_size,
+            input_size=self.input_size,
             hidden_sizes=hidden_sizes,
             output_size=len(sub_indices[1]),
             nonlinearity=hidden_nonlinearity,
         )
 
         self.v = MlpModel(
-            input_size=input_size,
+            input_size=self.input_size,
             hidden_sizes=hidden_sizes,
             output_size=1,
             nonlinearity=hidden_nonlinearity,
@@ -82,14 +82,14 @@ class PPOStructuredInsertionModel(torch.nn.Module):
         pi = torch.zeros((obs_flat.shape[0], self.n), dtype=obs_flat.dtype, device=obs_flat.device)
 
         for i in range(obs_flat.shape[0]):
-            if (obs_flat[i, 6:9]==0).all():
-                p = F.softmax(self.pi_free(obs_flat[i, :6]), dim=-1)
+            if (obs_flat[i, self.input_size:self.input_size+3]==0).all():
+                p = F.softmax(self.pi_free(obs_flat[i, :self.input_size]), dim=-1)
                 pi[i, self.sub_indices[0]] = p
             else:
-                p = F.softmax(self.pi_con(obs_flat[i, :6]), dim=-1)
+                p = F.softmax(self.pi_con(obs_flat[i, :self.input_size]), dim=-1)
                 pi[i, self.sub_indices[1]] = p
 
-        v = self.v(obs_flat[:, :6]).squeeze(-1)
+        v = self.v(obs_flat[:, :self.input_size]).squeeze(-1)
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), lead_dim, T, B)
 
