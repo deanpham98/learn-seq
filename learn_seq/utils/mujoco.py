@@ -252,19 +252,32 @@ def similarity_transform(A1, q21):
     R21 = quat2mat(q21)
     return R21.dot(A1.dot(R21.T))
 
-def quat2vec(q):
+# def quat2vec(q):
+#     """Transform quaternion representation to rotation vector representation"""
+#     r = np.zeros(3)
+#     scale = 1
+#     mujoco_py.functions.mju_quat2Vel(r, q, scale)
+#     if r[0] < 0:
+#         angle = np.linalg.norm(r)
+#         r = r / angle
+#         if angle < 0:
+#             angle = -angle
+#         else:
+#             angle = 2*np.pi - angle
+#         r = -r*angle
+#     return r
+
+def quat2vec(q, ref=None):
     """Transform quaternion representation to rotation vector representation"""
     r = np.zeros(3)
     scale = 1
     mujoco_py.functions.mju_quat2Vel(r, q, scale)
-    if r[0] < 0:
-        angle = np.linalg.norm(r)
-        r = r / angle
-        if angle < 0:
-            angle = -angle
-        else:
-            angle = 2*np.pi - angle
-        r = -r*angle
+    if ref is not None:
+        if r.dot(ref) < 0:
+            angle = np.linalg.norm(r)
+            r = r / angle
+            angle = angle - 2*np.pi
+            r = r*angle
     return r
 
 def inverse_frame(p, q):

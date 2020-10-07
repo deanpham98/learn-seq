@@ -95,7 +95,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
             self.robot_state.update()
         p, q = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
         # quat to angle axis
-        r = quat2vec(q)
+        r = quat2vec(q, ref=self.r_prev)
+        self.r_prev = r.copy()
         f = self.robot_state.get_ee_force(frame_quat=self.tf_quat)
         obs = np.hstack((p, r, f))
         return obs
@@ -177,6 +178,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
     def reset_to(self, p, q):
         self._reset_sim()
         self._eps_time = 0
+        # reset r ref
+        self.r_prev = quat2vec(self.target_quat)
         param = dict(pt=p, qt=q, ft=np.zeros(6), s=0.5,
                      kp=self.kp_init, kd=self.kd_init)
         self.container.run("move2target", param)
