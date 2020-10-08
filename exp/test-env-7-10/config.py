@@ -188,7 +188,8 @@ for j in range(NO_QUANTIZATION):
 
         param = dict(kd_adt=np.array([0.]*3 + [kd]*3),
                      ft=np.array([0, 0, -f, 0, 0, 0]),
-                     depth_thresh=-HOLE_DEPTH*0.95,
+                     pt=np.array([0, 0, -HOLE_DEPTH]),
+                     goal_thresh=GOAL_THRESH,
                      kp=stiffness,
                      kd=damping,
                      timeout=TIMEOUT)
