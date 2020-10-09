@@ -197,8 +197,9 @@ for j in range(4):
                      timeout=TIMEOUT)
         primitive_list.append(("admittance", param))
 
-no_contact_actions = len(primitive_list)
-contact_action_idx = list(range(no_contact_actions))
+#no_contact_actions = len(primitive_list)
+no_contact_actions = len(primitive_list) - no_free_actions
+contact_action_idx = list(range(no_free_actions, no_free_actions + no_contact_actions))
 sub_spaces = [free_action_idx, contact_action_idx]
 
 # ----- train config
@@ -230,7 +231,7 @@ sampler_config = {
     "sampler_class": CpuSampler,
     "sampler_kwargs":{
         "batch_T": 128, # no samples per iteration
-        "batch_B": 1, # no environments, this will be divided equally to no. parallel envs
+        "batch_B": 16, # no environments, this will be divided equally to no. parallel envs
         "max_decorrelation_steps": 10
     }
 }
