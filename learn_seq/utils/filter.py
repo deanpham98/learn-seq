@@ -42,4 +42,5 @@ class ButterLowPass:
     return filtered
 
   def reset_state(self):
-      delattr(self, 'zi')
+      if hasattr(self, 'zi'):
+          delattr(self, 'zi')

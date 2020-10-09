@@ -30,7 +30,7 @@ TIMEOUT = 2.
 
 # TODO change in environment
 HOLE_DEPTH = 0.02
-DEPTH_THRESH = 0.95 # the goal is achieved when insertion depth > HOLE_DEPTH * DEPTH_THRESH
+GOAL_THRESH = 1e-3
 TRAINING_STEP = 1000000
 SEED = 18
 
@@ -190,7 +190,8 @@ for j in range(4):
 
         param = dict(kd_adt=np.array([0.]*3 + [kd]*3),
                      ft=np.array([0, 0, -f, 0, 0, 0]),
-                     depth_thresh=-HOLE_DEPTH*DEPTH_THRESH,
+                     pt=np.array([0, 0, -HOLE_DEPTH]),
+                     goal_thresh=GOAL_THRESH,
                      kp=stiffness,
                      kd=damping,
                      timeout=TIMEOUT)
@@ -204,12 +205,11 @@ sub_spaces = [free_action_idx, contact_action_idx]
 env_config = {
     "id": "learn_seq:MujocoInsertionEnv-v0",
     "primitive_list": primitive_list,
-    "peg_pos_range": ([-0.05]*3, [0.05]*3),
-    "peg_rot_range": ([np.pi - 0.2] + [-0.2]*2, [np.pi + 0.2] + [0.2]*2),
-    "initial_pos_range": ([-0.005]*2+ [-0.002], [0.005]*2+ [0.002]),
+    "peg_pos_range": ([-0.2]*3, [0.2]*3),
+    "peg_rot_range": ([-1]*3, [1]*3),
+    "initial_pos_range": ([-0.005]*2+ [-0.001], [0.005]*2+ [0.001]),
     "initial_rot_range": ([-5*np.pi/180]*3, [5*np.pi/180]*3),
-    "depth_thresh": DEPTH_THRESH,
-    "controller_class": StateRecordHybridController,
+    "goal_thresh": GOAL_THRESH,
     "wrapper": StructuredActionSpaceWrapper,
     "wrapper_kwargs": {
         "hole_pos_error_range": ([-1./1000]*2+ [0.], [1./1000]*2+ [0.]),
@@ -230,7 +230,7 @@ sampler_config = {
     "sampler_class": CpuSampler,
     "sampler_kwargs":{
         "batch_T": 128, # no samples per iteration
-        "batch_B": 16, # no environments, this will be divided equally to no. parallel envs
+        "batch_B": 1, # no environments, this will be divided equally to no. parallel envs
         "max_decorrelation_steps": 10
     }
 }
