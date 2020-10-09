@@ -67,6 +67,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         # reset controller cmd
         self.controller.reset_pose_cmd()
         self.controller.reset_tau_cmd()
+        # reset filter
+        self.robot_state.reset_filter_state()
 
     def _hole_pose_from_model(self):
         # get hole_depth

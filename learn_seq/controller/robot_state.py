@@ -3,6 +3,7 @@ from mujoco_py import functions
 from learn_seq.utils.mujoco import MJ_SITE_OBJ, MJ_BODY_OBJ, MJ_GEOM_OBJ
 from learn_seq.utils.mujoco import quat2mat, pose_transform, get_contact_force,\
             transform_spatial, inverse_frame
+from learn_seq.utils.filter import ButterLowPass
 
 class RobotState:
     """Wrapper to the mujoco sim to store Franka state and perform
@@ -18,6 +19,12 @@ class RobotState:
         self.model = sim.model
         self.ee_site_idx = functions.mj_name2id(self.model, MJ_SITE_OBJ, ee_site_name)
         self.isUpdated = False
+        # low pass filter
+        dt = sim.model.opt.timestep
+        fs = 1/dt
+        cutoff = 30
+        self.fe = np.zeros(6)
+        self.lp_filter = ButterLowPass(cutoff, fs, order=5)
 
     def update(self):
         """Update the internal simulation state (kinematics, external force, ...).
@@ -26,6 +33,7 @@ class RobotState:
         functions.mj_step1(self.model, self.data)
         # udpate the external force internally
         functions.mj_rnePostConstraint(self.model, self.data)
+        self.update_ee_force()
         self.isUpdated = True
 
     def update_dynamic(self):
@@ -36,6 +44,16 @@ class RobotState:
 
     def is_update(self):
         return self.isUpdated
+
+    def update_ee_force(self):
+        """calculate and filter the external end-effector force
+        """
+        p, q = self.get_pose()
+        fe = get_contact_force(self.model, self.data, "peg", p, q)
+        self.fe = self.lp_filter(fe.reshape((-1, 6)))[0, :]
+
+    def reset_filter_state(self):
+        self.lp_filter.reset_state()
 
     def get_pose(self, frame_pos=None, frame_quat=None):
         """Get current pose of the end-effector with respect to a particular frame
@@ -76,17 +94,17 @@ class RobotState:
 
         """
         # force acting on the ee, relative to the ee frame
-        p, q = self.get_pose()
-        fee = get_contact_force(self.model, self.data, "peg", p, q)
         if frame_quat is None:
-            return fee
+            return self.fe
+        p, q = self.get_pose()
         qf0 = np.zeros(4)
         functions.mju_negQuat(qf0, frame_quat)
         qfe = np.zeros(4)
         functions.mju_mulQuat(qfe, qf0, q)  # qfe = qf0 * q0e
 
         # transform to target frame
-        ff = transform_spatial(fee, qfe)
+        ff = transform_spatial(self.fe, qfe)
+        # lowpass filter
         return ff
 
     def get_jacobian(self):
