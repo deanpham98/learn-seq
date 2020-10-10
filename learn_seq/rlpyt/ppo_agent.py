@@ -82,7 +82,7 @@ class PPOStructuredInsertionModel(torch.nn.Module):
         pi = torch.zeros((obs_flat.shape[0], self.n), dtype=obs_flat.dtype, device=obs_flat.device)
 
         for i in range(obs_flat.shape[0]):
-            if (np.abs(obs_flat[i, self.input_size:self.input_size+3])<=1).all():
+            if (torch.abs(obs_flat[i, self.input_size:self.input_size+3])<=1e-1).all():
                 p = F.softmax(self.pi_free(obs_flat[i, :self.input_size]), dim=-1)
                 pi[i, self.sub_indices[0]] = p
             else:
