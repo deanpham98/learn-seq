@@ -103,8 +103,9 @@ class FixedHolePoseErrorWrapper(StructuredActionSpaceWrapper):
 
     def reset(self):
         # add noise to create virtual estimated hole pose
-        pos_dir = (np.random.random(3) - 0.5) * 2
-        pos_dir = pos_dir / np.linalg.norm(pos_dir)
+        pos_dir = np.zeros(3)
+        pos_dir[:2] = (np.random.random(2) - 0.5) * 2
+        pos_dir[:2] = pos_dir[:2] / np.linalg.norm(pos_dir)
         hole_pos = self.hole_pos + self.pos_error * pos_dir
 
         rot_dir = (np.random.random(3) - 0.5) * 2

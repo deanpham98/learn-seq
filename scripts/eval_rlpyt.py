@@ -110,12 +110,12 @@ def real_eval_envs(config):
     # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
     # envs.append(gym_make(**env_config))
 
-    # larger hole pose error
+    # test success rate
     env_config = deepcopy(config.env_config)
     env_config["wrapper"] = FixedHolePoseErrorWrapper
     env_config["wrapper_kwargs"] = dict(
         hole_pos_error = 0.001,
-        hole_rot_error = np.pi / 180,
+        hole_rot_error = 1*np.pi / 180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
 
@@ -128,17 +128,43 @@ def real_eval_envs(config):
             wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
     # env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
     # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-    env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
-    env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
+    env_config["initial_pos_range"] = ([-0.002]*2+ [-0.], [0.002]*2+ [0.0])
+    env_config["initial_rot_range"] = ([-2*np.pi/180]*3, [2*np.pi/180]*3)
     envs.append(gym_make(**env_config))
     return envs
 
-def run_agent_single(agent, env, render=False):
+def real_seq_eval_envs(config):
+    envs = []
+    env_config = deepcopy(config.env_config)
+    env_config["wrapper"] = FixedHolePoseErrorWrapper
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error = 0.001,
+        hole_rot_error = np.pi / 180,
+        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+
+    wrapper = InitialPoseWrapper
+    wrapper_kwargs = dict(
+        p0 = np.zeros(3),
+        r0 = np.zeros(3)
+    )
+    env_config = append_wrapper(env_config,
+            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+
+    env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    env_config["initial_rot_range"] = ([-0*np.pi/180]*3, [0*np.pi/180]*3)
+    envs.append(gym_make(**env_config))
+    return envs
+
+def run_agent_single(agent, env, p=None, q=None, render=False):
     seq = []
     strat = []
     episode_rew = 0
     done = False
-    obs = env.reset()
+    if p is not None and q is not None:
+        obs = env.reset_to(p, q)
+    else:
+        obs = env.reset()
     print("intial pos: {}".format(env.ros_interface.get_ee_pose(frame_pos=env.tf_pos, frame_quat=env.tf_quat)))
     print("hole pos error: {}".format(env.tf_pos - env.hole_pos))
     print("hole pos error: {}".format(quat_error(env.hole_quat, env.tf_quat)))
@@ -209,6 +235,64 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         for env in eval_env_list:
             run_agent(agent, env, eps=eval_eps, render=render)
 
+def evaluate_sequence(run_path_list, config, render=False):
+    # test different initial pose
+    dp = 4./1000
+    dr = 4*np.pi/180
+    p0 = [np.array([dp-0.002, 0, 0.01]),
+          np.array([-dp, 0, 0.01]),
+          np.array([0, dp, 0.01]),
+          np.array([-0, -dp, 0.01])]
+
+    r0 = [np.array([dr, 0, 0.]),
+          np.array([-dr, 0, 0.]),
+          np.array([0, dr, 0.]),
+          np.array([-0, -dr, 0.])]
+
+    for run_path in run_path_list:
+        with open(os.path.join(run_path, "params.json"), "r") as f:
+            run_config = json.load(f)
+            run_id = run_config["run_ID"]
+        if "Real" not in config.env_config["id"]:
+            if "round" in run_id:
+                config.env_config["xml_model_name"] = "round_pih.xml"
+            if "square" in run_id:
+                config.env_config["xml_model_name"] = "square_pih.xml"
+
+        agent_class = config.agent_config["agent_class"]
+        state_dict = load_agent_state_dict(run_path)
+        model_kwargs = config.agent_config["model_kwargs"]
+        agent = agent_class(initial_model_state_dict=state_dict,
+                            model_kwargs=model_kwargs)
+        #
+        if "Real" in config.env_config["id"]:
+            eval_env_list = real_seq_eval_envs(config)
+        else:
+            eval_env_list = eval_envs(config)
+        print(eval_env_list[0].spaces)
+        agent.initialize(eval_env_list[0].spaces)
+        env =eval_env_list[0]
+        for p in p0:
+            for r in r0:
+                q = integrate_quat(eval_env_list[0].target_quat, r, 1)
+                env.unwrapped.initial_pos_mean = p
+                env.unwrapped.initial_rot_mean = r
+
+                print("initial pos range {}".format(env.initial_pos_range))
+                print("initial rot range {}".format(env.initial_rot_range))
+                print("initial pos mean {}".format(env.initial_pos_mean))
+                print("initial rot mean {}".format(env.initial_rot_mean))
+                for i in range(2):
+                    print("------")
+                    print("Episode {}".format(i))
+
+                    seq, strat, suc, rew = run_agent_single(agent, env, render=render)
+                    # episode info
+                    print("sequence idx: {}".format(seq))
+                    print("sequence name: {}".format(strat))
+                    print("success: {}".format(suc))
+                    print("episode reward: {}".format(rew))
+
 if __name__ == '__main__':
     import argparse
 
@@ -222,6 +306,8 @@ if __name__ == '__main__':
     parser.add_argument("--run-name", "-rn", type=str)
     parser.add_argument("--log", action="store_true",
                         help="run 1 episode for recording")
+    parser.add_argument("--eval-seq", action="store_true",
+                        help="find various sequence")
 
     args = parser.parse_args()
     args = vars(args)
@@ -242,5 +328,7 @@ if __name__ == '__main__':
         logger.start_record()
         evaluate(run_path_list, config, 1)
         logger.stop()
+    elif args["eval_seq"]:
+        evaluate_sequence(run_path_list, config, args["render"])
     else:
         evaluate(run_path_list, config, args["eval_eps"], args["render"])
