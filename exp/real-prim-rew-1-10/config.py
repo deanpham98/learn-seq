@@ -4,15 +4,20 @@ from torch.nn import ReLU
 from rlpyt.algos.pg.ppo import PPO
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
-from learn_seq.envs.wrapper import StructuredActionSpaceWrapper
+from learn_seq.envs.wrapper import StructuredActionSpaceWrapper, FixedHolePoseErrorWrapper
 from learn_seq.rlpyt.ppo_agent import PPOStructuredRealAgent
 from learn_seq.utils.mujoco import mat2quat, mul_quat
 
 # peg transformation matrix
-T_HOLE = np.array([0.995478,0.0930097,-0.018803,0,\
-                   0.0930499,-0.995651,0.00127024,0,\
-                   -0.0186034,-0.00301417,-0.999822,0,\
-                   0.529588,-0.0857657,0.150818,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.999634,0.0255433,-0.00769388,0,0.0255367,-0.999664,-0.000966397,0,-0.00771613,0.000769582,-0.99997, 0,\
+                   0.52918,-0.0900324,0.151878,1]).reshape((4, 4)).T
+# square with ft sensor
+T_HOLE = np.array([0.99681,-0.0789695,0.010703,0,-0.0786957,-0.996601,-0.023958,0,0.0125589,0.0230398,-0.999656, 0,\
+                   0.530379,0.0778299,0.14396,1]).reshape((4, 4)).T
+# trianlge with ft sensor
+T_HOLE = np.array([0.997734,0.064799,0.0175766,0,0.0645615,-0.997809,0.0137589,0,0.01843,-0.0125932,-0.999751, 0,\
+                   0.536035,0.137766,0.144699,1]).reshape((4, 4)).T
+
 hole_pos = T_HOLE[:3, 3]
 hole_rot = T_HOLE[:3, :3]
 hole_quat = mat2quat(hole_rot)
@@ -21,20 +26,20 @@ qx = np.array([np.cos(np.pi/2), np.sin(np.pi/2), 0, 0])
 hole_quat = mul_quat(hole_quat, qx)
 
 #
-SPEED_FACTOR_RANGE = [0.01, 0.05]
-SLIDING_SPEED_FACTOR_RANGE = [0.004, 0.01]
+SPEED_FACTOR_RANGE = [0.01, 0.02]
+SLIDING_SPEED_FACTOR_RANGE = [0.006, 0.012]
 
 FORCE_THRESH_RANGE = [5, 10]
 TORQUE_THRESH_RANGE = [0.1, 1]
 TRANSLATION_DISPLACEMENT_RANGE = [0.001, 0.005]
 ROTATION_DISPLACEMENT_RANGE = [np.pi/180, 5*np.pi/180]
-INSERTION_FORCE_RANGE = [5., 15]
-KD_ADMITTANCE_ROT_RANGE = [0.05, 0.15]
+INSERTION_FORCE_RANGE = [5., 12]
+KD_ADMITTANCE_ROT_RANGE = [0.1, 0.2]
 FORCE_THRESH_MOVE_DOWN = 5.
-SAFETY_FORCE = 20.
+SAFETY_FORCE = 15.
 SAFETY_TORQUE = 2.
-
-KP_DEFAULT = [1000.]*3 + [60.]*3
+ROTATION_FACTOR = 5
+KP_DEFAULT = [1000.]*3 + [60.]*2 + [30]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 
@@ -64,7 +69,7 @@ for i in range(NO_QUANTIZATION):
     primitive_list.append(("move2contact", param))
 
 # displacement free space
-vd = 0.05
+vd = 0.01
 for i in range(3):
     move_dir = np.zeros(6)
     for j in range(2):
@@ -72,7 +77,7 @@ for i in range(3):
         p = TRANSLATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i] = 1
         param = dict(u=move_dir,
-                     s=v, fs=SAFETY_FORCE,
+                     s=vd, fs=SAFETY_FORCE,
                      ft=np.zeros(6),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -91,7 +96,7 @@ for i in range(3):
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
-                     s=v, fs=SAFETY_TORQUE,
+                     s=vd*ROTATION_FACTOR, fs=SAFETY_TORQUE,
                      ft=np.zeros(6),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -140,8 +145,8 @@ for i in range(3):
 
             move_dir[i+3] = 1
             param = dict(u=move_dir,
-                         s=v, fs=fs,
-                         ft=np.array([0, 0, -3, 0, 0, 0.]),
+                         s=v*ROTATION_FACTOR, fs=fs,
+                         ft=np.array([0, 0, -5, 0, 0, 0.]),
                          kp=KP_DEFAULT,
                          kd=KD_DEFAULT,
                          timeout=TIMEOUT)
@@ -150,7 +155,7 @@ for i in range(3):
             primitive_list.append(("move2contact", deepcopy(param)))
 
 # displacement on plane
-vd = 0.008
+vd = 0.01
 for i in range(2):
     move_dir = np.zeros(6)
     for j in range(2):
@@ -158,7 +163,7 @@ for i in range(2):
         p = TRANSLATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i] = 1
         param = dict(u=move_dir,
-                     s=v, fs=SAFETY_FORCE,
+                     s=vd, fs=SAFETY_FORCE,
                      ft=np.array([0, 0, -5, 0, 0, 0.]),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -176,7 +181,7 @@ for i in range(3):
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
-                     s=v, fs=SAFETY_TORQUE,
+                     s=vd*ROTATION_FACTOR, fs=SAFETY_TORQUE,
                      ft=np.array([0, 0, -5, 0, 0, 0.]),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -212,38 +217,41 @@ sub_spaces = [free_action_idx, contact_action_idx]
 
 # ----- train config
 env_config = {
-    "id": "learn_seq:MujocoInsertionEnv-v0",
+    "id": "learn_seq:RealInsertionEnv-v0",
     "primitive_list": primitive_list,
     "hole_pos": hole_pos,
     "hole_quat": hole_quat,
     "hole_depth": HOLE_DEPTH,
     "peg_pos_range": ([-0.05]*3, [0.05]*3),
     "peg_rot_range": ([np.pi - 0.2] + [-0.2]*2, [np.pi + 0.2] + [0.2]*2),
-    "initial_pos_range": ([-0.001]*2+ [-0.0], [0.001]*2+ [0.0]),
-    "initial_rot_range": ([-1*np.pi/180]*3, [1*np.pi/180]*3),
+    "initial_pos_range": ([-0.002]*2+ [-0.0], [0.002]*2+ [0.0]),
+    "initial_rot_range": ([-2*np.pi/180]*3, [2*np.pi/180]*3),
     "depth_thresh": DEPTH_THRESH,
-    "wrapper": StructuredActionSpaceWrapper,
+    # "wrapper": StructuredActionSpaceWrapper,
+    "wrapper": FixedHolePoseErrorWrapper,
     "wrapper_kwargs": {
-        "hole_pos_error_range": ([-1./1000]*2+ [0.], [1./1000]*2+ [0.]),
-        "hole_rot_error_range": ([-np.pi/180]*3, [np.pi/180]*3),
+        # "hole_pos_error_range": ([-1./1000]*2+ [0.], [1./1000]*2+ [0.]),
+        # "hole_rot_error_range": ([-np.pi/180]*3, [np.pi/180]*3),
+        "hole_pos_error": 1./1000,
+        "hole_rot_error": np.pi/180,
         "spaces_idx_list": sub_spaces
     }
 }
 
 agent_config = {
-    "agent_class": PPOStructuredInsertionAgent,
+    "agent_class": PPOStructuredRealAgent,
     "model_kwargs": {
         "hidden_sizes": None,
-        #"hidden_nonlinearity": None,
+        "hidden_nonlinearity": ReLU,
     }
 }
 
 sampler_config = {
     "sampler_class": SerialSampler,
     "sampler_kwargs":{
-        "batch_T": 512, # no samples per iteration
+        "batch_T": 256, # no samples per iteration
         "batch_B": 1, # no environments, this will be divided equally to no. parallel envs
-        "max_decorrelation_steps": 10
+        "max_decorrelation_steps": 1
     }
 }
 
@@ -263,6 +271,6 @@ runner_config = {
     "runner_kwargs": {
         "n_steps": TRAINING_STEP,
         "seed": SEED,
-        "log_interval_steps": 2048,
+        "log_interval_steps": 128,
     }
 }

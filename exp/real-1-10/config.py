@@ -17,11 +17,11 @@ from learn_seq.utils.mujoco import mat2quat, mul_quat
 # T_HOLE = np.array([0.999112,-0.0409422,-0.00892529,0,-0.0408853,-0.999133,0.00646907,0,-0.00918259,-0.00609853,-0.999939,0,\
 #                    0.530269,0.0819464,0.137898,1]).reshape((4, 4)).T
 # triangle with ft sensor
-T_HOLE = np.array([0.984089,0.177458,-0.00764987,0,0.177459,-0.984118,-0.000558041,0,-0.00762755,-0.000808394,-0.999971,0,\
-                  0.535839,0.141824,0.138161,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.984089,0.177458,-0.00764987,0,0.177459,-0.984118,-0.000558041,0,-0.00762755,-0.000808394,-0.999971,0,\
+#                   0.535839,0.141824,0.138161,1]).reshape((4, 4)).T
 # # ROUDN + FT sensor
-# T_HOLE = np.array([0.99983,-0.017807,-0.00181452,0,-0.0177919,-0.9998,0.0080192,0,-0.00195699,-0.00798571,-0.999966, 0,\
-#                    0.530077,-0.0861608,0.15257,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.999626,0.0234218,-0.0134153,0,0.0233404,-0.999699,-0.00619113,0,-0.0135565,0.00587581,-0.999891, 0,\
+                   0.529405,-0.0864455,0.151313,1]).reshape((4, 4)).T
 
 
 hole_pos = T_HOLE[:3, 3]
@@ -42,6 +42,7 @@ KD_ADMITTANCE_ROT_RANGE = [0.05, 0.15]
 FORCE_THRESH_MOVE_DOWN = 5.
 SAFETY_FORCE = 20.
 SAFETY_TORQUE = 2.
+ROTATION_FACTOR = 5
 
 KP_DEFAULT = [1000.]*3 + [60.]*3
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
@@ -77,7 +78,7 @@ for i in range(NO_QUANTIZATION):
         primitive_list.append(("move2contact", param))
 
 # displacement free space
-vd = 0.005
+vd = 0.01
 for i in range(3):
     move_dir = np.zeros(6)
     for j in range(2):
@@ -104,7 +105,7 @@ for i in range(3):
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
-                     s=vd, fs=SAFETY_TORQUE,
+                     s=vd*ROTATION_FACTOR, fs=SAFETY_TORQUE,
                      ft=np.zeros(6),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -153,7 +154,7 @@ for i in range(3):
 
             move_dir[i+3] = 1
             param = dict(u=move_dir,
-                         s=v, fs=fs,
+                         s=v*ROTATION_FACTOR, fs=fs,
                          ft=np.array([0, 0, -3, 0, 0, 0.]),
                          kp=KP_DEFAULT,
                          kd=KD_DEFAULT,
@@ -163,7 +164,7 @@ for i in range(3):
             primitive_list.append(("move2contact", deepcopy(param)))
 
 # displacement on plane
-vd = 0.005
+vd = 0.01
 for i in range(2):
     move_dir = np.zeros(6)
     for j in range(2):
@@ -189,7 +190,7 @@ for i in range(3):
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
-                     s=vd, fs=SAFETY_TORQUE,
+                     s=vd*ROTATION_FACTOR, fs=SAFETY_TORQUE,
                      ft=np.array([0, 0, -3, 0, 0, 0.]),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -211,7 +212,7 @@ for j in range(NO_QUANTIZATION):
         df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / NO_QUANTIZATION
         f = INSERTION_FORCE_RANGE[0] + df/2 + k*df
 
-        param = dict(kd_adt=np.array([0.005]*3 + [kd]*3),
+        param = dict(kd_adt=np.array([0.002]*3 + [kd]*3),
                      ft=np.array([0, 0, -f, 0, 0, 0]),
                      depth_thresh=-HOLE_DEPTH*DEPTH_THRESH,
                      kp=stiffness,
@@ -254,7 +255,7 @@ agent_config = {
 sampler_config = {
     "sampler_class": SerialSampler,
     "sampler_kwargs":{
-        "batch_T": 512, # no samples per iteration
+        "batch_T": 256, # no samples per iteration
         "batch_B": 1, # no environments, this will be divided equally to no. parallel envs
         "max_decorrelation_steps": 10
     }
