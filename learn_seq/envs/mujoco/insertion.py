@@ -158,6 +158,11 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
             viewer = None
         type, param = self.primitive_list[action]
         t_exec = self.container.run(type, param, viewer=viewer)
+        info = {}
+        if self._eps_time == 0:
+            p, q = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
+            info["init_pos"] = p
+            info["init_quat"] = q
         self._eps_time += t_exec
 
         #
@@ -168,8 +173,9 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         isTimeout = self._eps_time > 20.
         done = isTimeout or isLimitReach or isSuccess
 
-        info = {"success": isSuccess,
-                "insert_depth": obs[2]}
+        info.update({"success": isSuccess,
+                "insert_depth": obs[2],
+                "eps_time": self._eps_time})
 
         return self._normalize_obs(obs), reward, done, info
 
