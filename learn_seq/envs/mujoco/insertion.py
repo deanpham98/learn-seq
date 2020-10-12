@@ -207,7 +207,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         self._eps_time = 0
         # reset r ref
         self.r_prev = quat2vec(self.target_quat)
-        param = dict(pt=p, qt=q, ft=np.zeros(6), s=0.3,
+        param = dict(pt=p, qt=q, ft=np.zeros(6), s=0.5,
                      kp=self.kp_init, kd=self.kd_init)
         self.container.run("move2target", param)
         obs = self._get_obs()
