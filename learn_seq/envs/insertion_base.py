@@ -44,6 +44,9 @@ class InsertionBaseEnv(gym.Env):
         self._set_observation_space()
         self._set_action_space()
 
+        # episode info
+        self.eps_info = {}
+
     def set_task_frame(self, hole_pos, hole_quat):
         self.tf_pos = hole_pos
         self.tf_quat = hole_quat
@@ -66,6 +69,8 @@ class InsertionBaseEnv(gym.Env):
         r = self.initial_rot_mean + np.random.uniform(self.initial_rot_range[0],\
                                         self.initial_rot_range[1])
         q0 = integrate_quat(self.target_quat, r, 1)
+        self.eps_info["init_pos"] = p0
+        self.eps_info["init_rot"] = r
         obs = self.reset_to(p0, q0)
         return obs
 
