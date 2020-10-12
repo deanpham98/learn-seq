@@ -56,9 +56,9 @@ class RealInsertionEnv(InsertionBaseEnv):
         isRobotError = self._is_robot_error()
         done = isTimeout or isLimitReach or isSuccess or isRobotError
 
-        info = {"success": isSuccess,
+        info.update({"success": isSuccess,
                 "insert_depth": obs[2],
-                "eps_time": self._eps_time}
+                "eps_time": self._eps_time})
 
         return self._normalize_obs(obs), reward, done, info
 
