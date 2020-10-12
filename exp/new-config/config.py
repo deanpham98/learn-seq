@@ -125,8 +125,8 @@ for i in range(3):  # x, y, z rotation
             dv = (SLIDING_SPEED_FACTOR_RANGE[1] - SLIDING_SPEED_FACTOR_RANGE[0])/NO_QUANTIZATION
             v = SLIDING_SPEED_FACTOR_RANGE[0] + dv/2 + j*dv
 
-            dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / NO_QUANTIZATION
-            fs = FORCE_THRESH_RANGE[0] + dfs/2 + k*dv
+            dfs = (TORQUE_THRESH_RANGE[1] - TORQUE_THRESH_RANGE[0]) / NO_QUANTIZATION
+            fs = TORQUE_THRESH_RANGE[0] + dfs/2 + k*dv
 
             move_dir[i+3] = 1
             param = dict(u=move_dir,
@@ -230,8 +230,8 @@ agent_config = {
 sampler_config = {
     "sampler_class": CpuSampler,
     "sampler_kwargs":{
-        "batch_T": 128, # no samples per iteration
-        "batch_B": 16, # no environments, this will be divided equally to no. parallel envs
+        "batch_T": 64, # no samples per iteration
+        "batch_B": 32, # no environments, this will be divided equally to no. parallel envs
         "max_decorrelation_steps": 10
     }
 }
@@ -248,7 +248,7 @@ algo_config = {
 }
 
 runner_config = {
-    "n_parallel": 4,  # number of CPU cores used for paralellism
+    "n_parallel": 8,  # number of CPU cores used for paralellism
     "runner_kwargs": {
         "n_steps": TRAINING_STEP,
         "seed": SEED,
