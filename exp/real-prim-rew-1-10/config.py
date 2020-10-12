@@ -12,8 +12,8 @@ from learn_seq.utils.mujoco import mat2quat, mul_quat
 T_HOLE = np.array([0.999634,0.0255433,-0.00769388,0,0.0255367,-0.999664,-0.000966397,0,-0.00771613,0.000769582,-0.99997, 0,\
                    0.52918,-0.0900324,0.151878,1]).reshape((4, 4)).T
 # square with ft sensor
-T_HOLE = np.array([0.993252,0.115859,-0.00275836,0,0.115705,-0.992722,-0.0331136,0,-0.00657491,0.0325716,-0.9994480, 0,\
-                   0.530775,0.0785345,0.143827,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.994534,0.103652,-0.0117917,0,0.103437,-0.99447,-0.0176149,0,-0.0135526,0.0162993,-0.999775, 0,\
+                   0.530561,0.077965,0.143972,1]).reshape((4, 4)).T
 # trianlge with ft sensor
 # T_HOLE = np.array([0.997734,0.064799,0.0175766,0,0.0645615,-0.997809,0.0137589,0,0.01843,-0.0125932,-0.999751, 0,\
 #                    0.536035,0.137766,0.144699,1]).reshape((4, 4)).T
@@ -39,7 +39,7 @@ FORCE_THRESH_MOVE_DOWN = 5.
 SAFETY_FORCE = 15.
 SAFETY_TORQUE = 2.
 ROTATION_FACTOR = 5
-KP_DEFAULT = [1000.]*3 + [60.]*2 + [30]
+KP_DEFAULT = [1000.]*3 + [60.]*2 + [40]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 
@@ -224,8 +224,8 @@ env_config = {
     "hole_depth": HOLE_DEPTH,
     "peg_pos_range": ([-0.05]*3, [0.05]*3),
     "peg_rot_range": ([np.pi - 0.2] + [-0.2]*2, [np.pi + 0.2] + [0.2]*2),
-    "initial_pos_range": ([-0.002]*2+ [-0.0], [0.002]*2+ [0.0]),
-    "initial_rot_range": ([-2*np.pi/180]*3, [2*np.pi/180]*3),
+    "initial_pos_range": ([-0.0]*2+ [-0.0], [0.0]*2+ [0.0]),
+    "initial_rot_range": ([-0*np.pi/180]*3, [0*np.pi/180]*3),
     "depth_thresh": DEPTH_THRESH,
     # "wrapper": StructuredActionSpaceWrapper,
     "wrapper": FixedHolePoseErrorWrapper,
@@ -249,7 +249,7 @@ agent_config = {
 sampler_config = {
     "sampler_class": SerialSampler,
     "sampler_kwargs":{
-        "batch_T": 256, # no samples per iteration
+        "batch_T": 128, # no samples per iteration
         "batch_B": 1, # no environments, this will be divided equally to no. parallel envs
         "max_decorrelation_steps": 1
     }
