@@ -33,7 +33,7 @@ FORCE_THRESH_RANGE = [5, 10]
 TORQUE_THRESH_RANGE = [0.1, 1]
 TRANSLATION_DISPLACEMENT_RANGE = [0.001, 0.005]
 ROTATION_DISPLACEMENT_RANGE = [np.pi/180, 5*np.pi/180]
-INSERTION_FORCE_RANGE = [5., 12]
+INSERTION_FORCE_RANGE = [5., 10]
 KD_ADMITTANCE_ROT_RANGE = [0.1, 0.2]
 FORCE_THRESH_MOVE_DOWN = 5.
 SAFETY_FORCE = 15.
@@ -140,8 +140,8 @@ for i in range(3):
             dv = (SLIDING_SPEED_FACTOR_RANGE[1] - SLIDING_SPEED_FACTOR_RANGE[0])/NO_QUANTIZATION
             v = SLIDING_SPEED_FACTOR_RANGE[0] + dv/2 + j*dv
 
-            dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / 2
-            fs = FORCE_THRESH_RANGE[0] + dfs/2 + k*dv
+            dfs = (TORQUE_THRESH_RANGE[1] - TORQUE_THRESH_RANGE[0]) / 2
+            fs = TORQUE_THRESH_RANGE[0] + dfs/2 + k*dv
 
             move_dir[i+3] = 1
             param = dict(u=move_dir,
