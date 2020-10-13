@@ -4,7 +4,7 @@ from learn_seq.utils.general import get_mujoco_model_path
 
 SIZE = 0.025
 HEIGHT = 0.04
-CLEARANCE = 0.0001
+CLEARANCE = 0.00001
 
 def generate_hole(point_list, bound, height):
     """
