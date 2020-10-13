@@ -9,7 +9,7 @@ from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_confi
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
 from learn_seq.utils.gym import append_wrapper
 from learn_seq.utils.mujoco import integrate_quat, quat_error
-from learn_seq.envs.wrapper import InitialPoseWrapper, FixedHolePoseErrorWrapper
+from learn_seq.envs.wrapper import InitialPoseWrapper, FixedHolePoseErrorWrapper, FixedInitialPoseWrapper
 from learn_seq.controller.hybrid import StateRecordHybridController
 from learn_seq.ros.logger import basic_logger
 
@@ -58,11 +58,43 @@ def plot_progress(run_path_list):
 # return the evaluation environments. The policy will be tested on each environment
 def eval_envs(config):
     envs = []
-    # test when there is no hole pose error
+    # test normal: fixed initial position, 0-1mm hole pose error
     env_config = deepcopy(config.env_config)
-    env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
-    env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
+    env_config["initial_pos_range"] = ([0.]*3, [0.]*3)
+    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    env_config["wrapper"] = FixedHolePoseErrorWrapper
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error = 0.0,
+        hole_rot_error = 0*np.pi / 180,
+        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+
     envs.append(gym_make(**env_config))
+
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error = 0.001,
+        hole_rot_error = 1*np.pi/180,
+        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+    envs.append(gym_make(**env_config))
+    # test generalization: fixed init position, 2mm hole pose error
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error = 0.002,
+        hole_rot_error = 2*np.pi/180,
+        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+    envs.append(gym_make(**env_config))
+
+    # test robust: random initial position, 1mm hole pose error
+    wrapper = FixedInitialPoseWrapper
+    wrapper_kwargs = dict(
+        dp = 0.002,
+        dr = 2*np.pi/180
+    )
+    env_config = append_wrapper(env_config,
+            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    envs.append(gym_make(**env_config))
+
 
     # fix initial state
     # wrapper = InitialPoseWrapper
@@ -208,6 +240,8 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
                 config.env_config["xml_model_name"] = "round_pih.xml"
             if "square" in run_id:
                 config.env_config["xml_model_name"] = "square_pih.xml"
+            if "triangle" in run_id:
+                config.env_config["xml_model_name"] = "triangle_pih.xml"
 
         agent_class = config.agent_config["agent_class"]
         state_dict = load_agent_state_dict(run_path)
@@ -215,10 +249,11 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         agent = agent_class(initial_model_state_dict=state_dict,
                             model_kwargs=model_kwargs)
         #
-        if "Real" in config.env_config["id"]:
-            eval_env_list = real_eval_envs(config)
-        else:
-            eval_env_list = eval_envs(config)
+        # if "Real" in config.env_config["id"]:
+        #     eval_env_list = real_eval_envs(config)
+        # else:
+        #     eval_env_list = eval_envs(config)
+        eval_env_list = eval_envs(config)
 
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:

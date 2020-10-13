@@ -64,6 +64,11 @@ class InsertionBaseEnv(gym.Env):
         self.observation_space = gym.spaces.Box(self.obs_low_limit, self.obs_up_limit)
 
     def reset(self):
+        p0, q0 = self._sample_init_pose()
+        obs = self.reset_to(p0, q0)
+        return obs
+
+    def _sample_init_pose(self):
         p0 = self.initial_pos_mean + np.random.uniform(self.initial_pos_range[0],\
                                         self.initial_pos_range[1])
         r = self.initial_rot_mean + np.random.uniform(self.initial_rot_range[0],\
@@ -71,8 +76,7 @@ class InsertionBaseEnv(gym.Env):
         q0 = integrate_quat(self.target_quat, r, 1)
         self.eps_info["init_pos"] = p0
         self.eps_info["init_rot"] = r
-        obs = self.reset_to(p0, q0)
-        return obs
+        return p0, q0
 
     def step(self):
         raise NotImplementedError

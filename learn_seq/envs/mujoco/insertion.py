@@ -192,3 +192,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         InsertionBaseEnv.set_task_frame(self, p, q)
         # set task frame to all primitives
         self.container.set_task_frame(p, q)
+
+    @property
+    def unwrapped(self):
+        return self
