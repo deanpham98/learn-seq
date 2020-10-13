@@ -208,8 +208,8 @@ env_config = {
     "primitive_list": primitive_list,
     "peg_pos_range": ([-0.2]*3, [0.2]*3),
     "peg_rot_range": ([-1]*3, [1]*3),
-    "initial_pos_range": ([-0.002]*2+ [-0.001], [0.002]*2+ [0.001]),
-    "initial_rot_range": ([-2*np.pi/180]*3, [2*np.pi/180]*3),
+    "initial_pos_range": ([-0.001]*2+ [-0.001], [0.001]*2+ [0.001]),
+    "initial_rot_range": ([-1*np.pi/180]*3, [1*np.pi/180]*3),
     "goal_thresh": GOAL_THRESH,
     "wrapper": StructuredActionSpaceWrapper,
     "wrapper_kwargs": {
