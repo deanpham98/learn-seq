@@ -30,7 +30,7 @@ TIMEOUT = 2.
 
 # TODO change in environment
 HOLE_DEPTH = 0.02
-GOAL_THRESH = 1e-3
+GOAL_THRESH = 2e-3
 TRAINING_STEP = 1000000
 SEED = 18
 
