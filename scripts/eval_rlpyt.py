@@ -75,17 +75,6 @@ def eval_envs(config):
     # env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
     # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
 
-    # change hole pose in the mujoco environment
-    rot = np.array([0, -60*np.pi/180, 0])
-    hole_body_quat = integrate_quat(np.array([1., 0,0 ,0]), rot, 1)
-    wrapper = HolePoseWrapper
-    wrapper_kwargs = dict(
-        hole_body_pos=np.array([0.53, 0.012, 0.5088]),
-        hole_body_quat=hole_body_quat
-    )
-    env_config = append_wrapper(config.env_config, wrapper, wrapper_kwargs, pos="first")
-    envs.append(gym_make(**env_config))
-
     return envs
 
 def real_eval_envs(config):
@@ -165,7 +154,7 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
         obs = env.reset_to(p, q)
     else:
         obs = env.reset()
-    print("intial pos: {}".format(env.ros_interface.get_ee_pose(frame_pos=env.tf_pos, frame_quat=env.tf_quat)))
+    # print("intial pos: {}".format(env.ros_interface.get_ee_pose(frame_pos=env.tf_pos, frame_quat=env.tf_quat)))
     print("hole pos error: {}".format(env.tf_pos - env.hole_pos))
     print("hole pos error: {}".format(quat_error(env.hole_quat, env.tf_quat)))
 

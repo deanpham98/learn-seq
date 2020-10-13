@@ -203,7 +203,7 @@ for j in range(NO_QUANTIZATION):
         df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / NO_QUANTIZATION
         f = INSERTION_FORCE_RANGE[0] + df/2 + k*df
 
-        param = dict(kd_adt=np.array([0.]*3 + [kd]*3),
+        param = dict(kd_adt=np.array([0.01]*3 + [kd]*3),
                      ft=np.array([0, 0, -f, 0, 0, 0]),
                      depth_thresh=-HOLE_DEPTH*DEPTH_THRESH,
                      kp=stiffness,
