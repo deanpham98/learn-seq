@@ -185,12 +185,12 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         else:
             viewer = None
         type, param = self.primitive_list[action]
-        t_exec = self.container.run(type, param, viewer=viewer)
+        t_exec, rew = self.container.run(type, param, viewer=viewer)
         self._eps_time += t_exec
 
         #
         obs = self._get_obs()
-        reward = self._reward_func(obs, t_exec)
+        reward = self._reward_func(obs, t_exec) + rew
         isLimitReach = self._is_limit_reach(obs[:3])
         isSuccess = self._is_success(obs[:3])
         isTimeout = self._eps_time > 20.
@@ -208,7 +208,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         # reset r ref
         self.r_prev = quat2vec(self.target_quat)
         param = dict(pt=p, qt=q, ft=np.zeros(6), s=0.5,
-                     kp=self.kp_init, kd=self.kd_init)
+                     kp=self.kp_init, kd=self.kd_init, timeout=3)
         self.container.run("move2target", param)
         obs = self._get_obs()
         return self._normalize_obs(obs)
