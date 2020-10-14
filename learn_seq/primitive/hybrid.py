@@ -482,8 +482,6 @@ class Move2Target2(Move2Target):
                     np.linalg.norm(quat_error(self.qt, q)) < self.rot_thresh
         isTimeout = self.timeout_count < 0
         if isTimeout or isSuccess:
-            print(np.linalg.norm(self.pt - p), np.linalg.norm(quat_error(self.qt, q)))
-            print(isSuccess)
             return PrimitiveStatus.SUCCESS
         return PrimitiveStatus.EXECUTING
 
