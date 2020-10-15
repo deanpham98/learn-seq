@@ -9,7 +9,7 @@ from learn_seq.utils.general import read_csv, get_exp_path, get_dirs, load_confi
 from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
 from learn_seq.utils.gym import append_wrapper
 from learn_seq.utils.mujoco import integrate_quat
-from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper
+from learn_seq.envs.wrapper import InitialPoseWrapper, HolePoseWrapper, FixedHolePoseErrorWrapper
 from learn_seq.controller.hybrid import StateRecordHybridController
 
 def plot(x_idx, y_idx, data, ax=None):
@@ -88,6 +88,44 @@ def eval_envs(config):
 
     return envs
 
+def eval_envs2(config):
+    envs = []
+    # test when there is no hole pose error
+    env_config = deepcopy(config.env_config)
+    env_config["wrapper"] = FixedHolePoseErrorWrapper
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error= 0.,
+        hole_rot_error= 0.,
+        spaces_idx_list=env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+    envs.append(gym_make(**env_config))
+
+    # hole pose error = 1
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error= 1./1000,
+        hole_rot_error= np.pi / 180,
+        spaces_idx_list=env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+    envs.append(gym_make(**env_config))
+
+    # generalization hole_pose_error = 2.
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error= 2./1000,
+        hole_rot_error= 2*np.pi/180,
+        spaces_idx_list=env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+    envs.append(gym_make(**env_config))
+
+    # robustness
+    env_config["initial_pos_range"] = ([-0.002]*2+ [-0.002], [0.002]*2+ [0.002])
+    env_config["initial_rot_range"] = ([-2*np.pi/180]*3, [2*np.pi/180]*3)
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error= 1./1000,
+        hole_rot_error= np.pi / 180,
+        spaces_idx_list=env_config["wrapper_kwargs"]["spaces_idx_list"]
+    )
+    envs.append(gym_make(**env_config))
+    return envs
 # run the agent in a particular environment once
 def run_agent_single(agent, env, render=False):
     seq = []
@@ -149,7 +187,7 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         agent = agent_class(initial_model_state_dict=state_dict,
                             model_kwargs=model_kwargs)
         #
-        eval_env_list = eval_envs(config)
+        eval_env_list = eval_envs2(config)
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:
             run_agent(agent, env, eps=eval_eps, render=render)
