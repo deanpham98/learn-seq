@@ -318,15 +318,17 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
                          tf_pos, tf_quat, timeout,
                         **kwargs)
         self.kd_adt = np.zeros(6)
-        self.depth_thresh = 0.
+        self.goal_thresh = 0.
+        self.pt = np.zeros(3)
 
     def __repr__(self):
         return "control desired force {} in z direction, and 0-torque in other until depth < {}"\
-                .format(self.ft, self.depth_thresh)
+                .format(self.ft, self.goal_thresh)
 
-    def configure(self, kd_adt, ft, depth_thresh, kp, kd, timeout=None):
+    def configure(self, kd_adt, ft, pt, goal_thresh, kp, kd, timeout=None):
         self.kd_adt = kd_adt
-        self.depth_thresh = depth_thresh
+        self.goal_thresh = goal_thresh
+        self.pt = pt   # goal position in the task frame
         # force in base frame
         self.ft = transform_spatial(ft, self.tf_quat)
         # selection matrix
@@ -335,7 +337,7 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
 
     def is_terminate(self):
         p_task, q_task = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
-        if p_task[2] < self.depth_thresh or self.timeout_count < 0:
+        if np.linalg.norm(p_task - self.pt) < self.goal_thresh or self.timeout_count < 0:
             return True
         return False
 
