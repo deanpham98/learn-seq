@@ -215,7 +215,7 @@ class FrankaRosInterface:
 
         return cmd
 
-    def get_admittance_cmd(self, kd_adt, ft, depth_thresh, kp, kd,
+    def get_admittance_cmd(self, kd_adt, ft, pt, goal_thresh, kp, kd,
                             tf_pos=np.zeros(3),
                             tf_quat=np.array([1., 0,0 ,0]),
                             timeout=None):
@@ -223,8 +223,12 @@ class FrankaRosInterface:
         cmd.type = PrimitiveType.AdmittanceMotion
 
         p = AdmittanceMotionParam()
+        p.task_frame.pos = tf_pos
+        p.task_frame.quat = tf_quat
         p.kd = kd_adt
         p.fd = ft
+        p.goal_thresh = goal_thresh
+        p.pt = pt
         p.timeout = timeout or TIMEOUT_DEFAULT
         p.controller_gain = self.get_gain_cmd(kp, kd)
         cmd.time = rospy.Time.now().to_sec()
