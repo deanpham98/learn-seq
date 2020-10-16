@@ -24,7 +24,7 @@ ROTATION_TO_TRANSLATION_FACTOR = 8
 SAFETY_FORCE = 15.
 SAFETY_TORQUE = 2.
 # controller gains
-KP_DEFAULT = [1000.]*3 + [60.]*3
+KP_DEFAULT = [1000.]*3 + [60.]*2 + [40.]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 
@@ -37,12 +37,12 @@ SEED = 18
 # ----- Primitive config
 primitive_list = []
 # move down until contact (16 primitives)
-for i in range(4):
-    for j in range(4):
-        dv = (SPEED_FACTOR_RANGE[1] - SPEED_FACTOR_RANGE[0])/4
+for i in range(NO_QUANTIZATION):
+    for j in range(NO_QUANTIZATION):
+        dv = (SPEED_FACTOR_RANGE[1] - SPEED_FACTOR_RANGE[0])/NO_QUANTIZATION
         v = SPEED_FACTOR_RANGE[0] + dv/2 + i*dv
 
-        dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / 4
+        dfs = (FORCE_THRESH_RANGE[1] - FORCE_THRESH_RANGE[0]) / NO_QUANTIZATION
         fs = FORCE_THRESH_RANGE[0] + dfs/2 + j*dv
 
         param = dict(u=np.array([0, 0, -1, 0, 0, 0]),
@@ -81,7 +81,7 @@ for i in range(3):  # x, y, z rotation
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
-                     s=vd*ROTATION_TO_TRANSLATION_FACTOR, fs=fs,
+                     s=vd*ROTATION_TO_TRANSLATION_FACTOR, fs=SAFETY_TORQUE,
                      ft=np.zeros(6),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -148,7 +148,7 @@ for i in range(2):  # x, y tranlation
         p = TRANSLATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i] = 1
         param = dict(u=move_dir,
-                     s=vd, fs=fs,
+                     s=vd, fs=SAFETY_FORCE,
                      ft=np.array([0, 0, -3, 0, 0, 0.]),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -166,7 +166,7 @@ for i in range(3):  # x, y, z rotation
         p = ROTATION_DISPLACEMENT_RANGE[0] + dp/2 + j*dp
         move_dir[i+3] = 1
         param = dict(u=move_dir,
-                     s=vd*ROTATION_TO_TRANSLATION_FACTOR, fs=fs,
+                     s=vd*ROTATION_TO_TRANSLATION_FACTOR, fs=SAFETY_TORQUE,
                      ft=np.array([0, 0, -3, 0, 0, 0.]),
                      delta_d=p,
                      kp=KP_DEFAULT,
@@ -180,12 +180,12 @@ for i in range(3):  # x, y, z rotation
 # admittance
 stiffness =[500, 500, 500, 50, 50, 50.]
 damping = [10.]*6
-for j in range(4):
-    for k in range(4):
-        dkd = (KD_ADMITTANCE_ROT_RANGE[1] - KD_ADMITTANCE_ROT_RANGE[0])/4
+for j in range(NO_QUANTIZATION):
+    for k in range(NO_QUANTIZATION):
+        dkd = (KD_ADMITTANCE_ROT_RANGE[1] - KD_ADMITTANCE_ROT_RANGE[0])/NO_QUANTIZATION
         kd = KD_ADMITTANCE_ROT_RANGE[0] + dkd/2 + j*dkd
 
-        df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / 4
+        df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / NO_QUANTIZATION
         f = INSERTION_FORCE_RANGE[0] + df/2 + k*df
 
         param = dict(kd_adt=np.array([0.]*3 + [kd]*3),
