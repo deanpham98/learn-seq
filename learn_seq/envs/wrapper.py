@@ -9,7 +9,7 @@ from learn_seq.mujoco_wrapper import MujocoModelWrapper
 class BaseInsertionWrapper(Wrapper):
     def __init__(self, env):
         super().__init__(env)
-        self.robot_state = env.robot_state
+        # self.robot_state = env.robot_state
 
     def get_task_frame(self):
         return self.env.get_task_frame()

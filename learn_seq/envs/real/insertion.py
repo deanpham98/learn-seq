@@ -154,3 +154,7 @@ class RealInsertionEnv(InsertionBaseEnv):
     def set_task_frame(self, tf_pos, tf_quat):
         super().set_task_frame(tf_pos, tf_quat)
         self.container.set_task_frame(tf_pos, tf_quat)
+
+    @property
+    def unwrapped(self):
+        return self

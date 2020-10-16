@@ -9,11 +9,11 @@ from learn_seq.rlpyt.ppo_agent import PPOStructuredRealAgent
 from learn_seq.utils.mujoco import mat2quat, mul_quat
 
 # peg transformation matrix
-# T_HOLE = np.array([0.999975,0.00527059,-0.00176931,0,0.00526162,-0.999964,-0.00504073,0,-0.00179585,0.00503139,-0.999986, 0,\
-#                    0.530177,-0.0897928,0.151761,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.976726,0.21435,-0.0064302,0,0.214405,-0.976687,0.00965011,0,-0.00421187,-0.0108044,-0.999933, 0,\
+#                    0.529983,-0.0894217,0.151994,1]).reshape((4, 4)).T
 # square with ft sensor
-T_HOLE = np.array([0.993373,0.114055,-0.0135106,0,0.113615,-0.993069,-0.0297849,0,-0.0168144,0.028053,-0.999465, 0,\
-                   0.530561,0.077965,0.143972,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.999974,-0.00503213,-0.00279722,0,-0.00497759,-0.999794,0.0191726,0,-0.00289317,-0.0191586,-0.999812, 0,\
+                   0.528948,-0.122447,0.142465,1]).reshape((4, 4)).T
 # trianlge with ft sensor
 # T_HOLE = np.array([0.997734,0.064799,0.0175766,0,0.0645615,-0.997809,0.0137589,0,0.01843,-0.0125932,-0.999751, 0,\
 #                    0.536035,0.137766,0.144699,1]).reshape((4, 4)).T
@@ -41,7 +41,7 @@ ROTATION_TO_TRANSLATION_FACTOR = 8
 SAFETY_FORCE = 15.
 SAFETY_TORQUE = 2.
 # controller gains
-KP_DEFAULT = [1000.]*3 + [60.]*3
+KP_DEFAULT = [1000.]*3 + [60.]*2 + [30.]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 
