@@ -205,8 +205,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
                 "insert_depth": obs[2],
                 "eps_time": self._eps_time})
 
-        # return self._normalize_obs(obs), reward, done, info
-        return obs, reward, done, info
+        return self._normalize_obs(obs), reward, done, info
+        # return obs, reward, done, info
 
     def reset_to(self, p, q):
         self._reset_sim()

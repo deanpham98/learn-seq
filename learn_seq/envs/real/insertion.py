@@ -66,7 +66,8 @@ class RealInsertionEnv(InsertionBaseEnv):
     def _get_obs(self):
         p, q= self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
         # quat to angle axis
-        r = quat2vec(q)
+        r = quat2vec(q, ref=self.r_prev)
+        self.r_prev = r.copy()
         f = self.ros_interface.get_ee_force()
         return np.hstack((p, r, f))
 
@@ -76,6 +77,8 @@ class RealInsertionEnv(InsertionBaseEnv):
 
     def reset_to(self, p, q):
         self._eps_time = 0
+        # reset r ref
+        self.r_prev = quat2vec(self.target_quat)
 
         if self.ros_interface.get_robot_mode() ==FRANKA_ERROR_MODE:
             self.ros_interface.move_up(timeout=0.5)
