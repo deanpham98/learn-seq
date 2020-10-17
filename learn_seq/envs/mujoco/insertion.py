@@ -187,10 +187,10 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         type, param = self.primitive_list[action]
         t_exec = self.container.run(type, param, viewer=viewer)
         info = {}
-        if self._eps_time == 0:
-            p, q = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
-            info["init_pos"] = p
-            info["init_quat"] = q
+        # if self._eps_time == 0:
+        #     p, q = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
+        #     info["init_pos"] = p
+        #     info["init_quat"] = q
         self._eps_time += t_exec
 
         #
