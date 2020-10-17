@@ -57,7 +57,7 @@ class Primitive(object):
             if viewer is not None:
                 viewer.render()
         if status is PrimitiveStatus.FAIL:
-            rew = -1
+            rew = -2
         else:
             rew = 0
         return self.robot_state.get_sim_time() - t_start, rew
