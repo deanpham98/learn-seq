@@ -69,7 +69,7 @@ def eval_envs(config):
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
 
-    envs.append(gym_make(**env_config))
+    # envs.append(gym_make(**env_config))
 
     env_config["wrapper_kwargs"] = dict(
         hole_pos_error = 0.001,
@@ -86,13 +86,22 @@ def eval_envs(config):
     envs.append(gym_make(**env_config))
 
     # test robust: random initial position, 1mm hole pose error
-    wrapper = FixedInitialPoseWrapper
-    wrapper_kwargs = dict(
-        dp = 0.002,
-        dr = 2*np.pi/180
+    # wrapper = FixedInitialPoseWrapper
+    # wrapper_kwargs = dict(
+    #     dp = 0.002,
+    #     dr = 2*np.pi/180
+    # )
+    env_config["initial_pos_range"] = ([-0.001]*3, [0.001]*3)
+    env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
+
+    env_config["wrapper_kwargs"] = dict(
+        hole_pos_error = 0.001,
+        hole_rot_error = 1*np.pi/180,
+        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
-    env_config = append_wrapper(env_config,
-            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+
+    # env_config = append_wrapper(env_config,
+    #         wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
     envs.append(gym_make(**env_config))
 
 
@@ -106,6 +115,9 @@ def eval_envs(config):
     #         wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
     # env_config["initial_pos_range"] = ([-0.001]*2+ [-0.], [0.001]*2+ [0.0])
     # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    # env_config["initial_pos_range"] = ([-0.001]*3, [0.001]*3)
+    # env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
+    # envs.append(gym_make(**env_config))
 
     return envs
 
@@ -199,9 +211,9 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
         a = np.array(action)
         print(env.unwrapped.primitive_list[a])
         if render:
-            obs, reward, done, info = env.unwrapped.step(a, render=render)
+            obs, reward, done, info = env.env.step(a, render=render)
         else:
-            obs, reward, done, info = env.unwrapped.step(a)
+            obs, reward, done, info = env.env.step(a)
         seq.append(action.item())
         strat.append(env.primitive_list[action.item()][0])
         episode_rew += reward

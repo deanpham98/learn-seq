@@ -9,14 +9,14 @@ from learn_seq.rlpyt.ppo_agent import PPOStructuredRealAgent
 from learn_seq.utils.mujoco import mat2quat, mul_quat
 
 # peg transformation matrix
-# T_HOLE = np.array([0.976726,0.21435,-0.0064302,0,0.214405,-0.976687,0.00965011,0,-0.00421187,-0.0108044,-0.999933, 0,\
-#                    0.529983,-0.0894217,0.151994,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.973253,0.228719,-0.0211343,0,0.228779,-0.973468,0.000469316,0,-0.0204666,-0.00529194,-0.999777, 0,\
+                   0.531149,0.0750407,0.152897,1]).reshape((4, 4)).T
 # square with ft sensor
-T_HOLE = np.array([0.999244,-0.0353129,-0.0156599,0,-0.0354262,-0.999338,-0.00702255,0,-0.0154019,0.00757216,-0.999853, 0,\
-                   0.528878,-0.121974,0.142309,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.998264,0.0577538,0.0107282,0,0.0578767,-0.998248,-0.0115174,0,0.0100444,0.0121185,-0.999876, 0,\
+#                    0.528951,-0.122254,0.142635,1]).reshape((4, 4)).T
 # trianlge with ft sensor
-# T_HOLE = np.array([0.997734,0.064799,0.0175766,0,0.0645615,-0.997809,0.0137589,0,0.01843,-0.0125932,-0.999751, 0,\
-#                    0.536035,0.137766,0.144699,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.998326,0.0552086,-0.0166446,0,0.0550535,-0.998427,-0.00963753,0,-0.0171508,0.00870523,-0.999815, 0,\
+#                    0.534665,-0.0616273,0.142589,1]).reshape((4, 4)).T
 
 hole_pos = T_HOLE[:3, 3]
 hole_rot = T_HOLE[:3, :3]
@@ -35,13 +35,13 @@ FORCE_THRESH_RANGE = [8, 15]
 TORQUE_THRESH_RANGE = [0.1, 0.5]
 TRANSLATION_DISPLACEMENT_RANGE = [0.001, 0.005]
 ROTATION_DISPLACEMENT_RANGE = [np.pi/180, 5*np.pi/180]
-INSERTION_FORCE_RANGE = [10., 20]
+INSERTION_FORCE_RANGE = [5., 12]
 KD_ADMITTANCE_ROT_RANGE = [0.01, 0.15]
 ROTATION_TO_TRANSLATION_FACTOR = 8
 SAFETY_FORCE = 15.
-SAFETY_TORQUE = 2.
+SAFETY_TORQUE = 1.
 # controller gains
-KP_DEFAULT = [2000.] + [1000]*2 + [60.]*2 + [30.]
+KP_DEFAULT = [2500.] + [1500]*2 + [60.]*2 + [30.]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 

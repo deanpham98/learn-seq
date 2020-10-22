@@ -175,7 +175,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
 
     def viewer_setup(self):
         self.viewer.cam.distance=0.43258
-        self.viewer.cam.lookat[:] = [0.517255, 0.0089188, 0.25619 ]
+        self.viewer.cam.lookat[:] = [0.517255, 0.0089188, 0.25619]
         self.viewer.cam.elevation = -20.9
         self.viewer.cam.azimuth = 132.954
 

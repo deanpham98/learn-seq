@@ -66,7 +66,8 @@ class FrankaRosInterface:
         self._state["qd"] = np.array(msg.qd)
 
     def _sub_motion_gen_callback(self, msg):
-        self._state["f"] = np.array(msg.f_ee)
+        # self._state["f"] = np.array(msg.f_ee)
+        self._state["f"] = np.array(msg.f_s)
         self._state["fd"] = np.array(msg.fd)
 
     def _sub_franka_state_callback(self, msg):
