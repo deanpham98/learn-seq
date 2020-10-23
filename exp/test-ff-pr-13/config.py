@@ -24,7 +24,7 @@ ROTATION_TO_TRANSLATION_FACTOR = 8
 SAFETY_FORCE = 15.
 SAFETY_TORQUE = 1.
 # controller gains
-KP_DEFAULT = [2500.] + [1500]*2 + [60.]*2 + [30.]
+KP_DEFAULT = [1000.] + [1000]*2 + [60.]*2 + [30.]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 
@@ -213,8 +213,8 @@ env_config = {
     "goal_thresh": GOAL_THRESH,
     "wrapper": StructuredActionSpaceWrapper,
     "wrapper_kwargs": {
-        "hole_pos_error_range": ([-1./1000]*2+ [0.], [1./1000]*2+ [0.]),
-        "hole_rot_error_range": ([-np.pi/180]*3, [np.pi/180]*3),
+        "hole_pos_error_range": ([-0./1000]*2+ [0./1000], [0./1000]*2+ [0./1000]),
+        "hole_rot_error_range": ([-0*np.pi/180]*3, [0*np.pi/180]*3),
         "spaces_idx_list": sub_spaces
     }
 }
