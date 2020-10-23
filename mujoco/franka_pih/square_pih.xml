@@ -13,7 +13,7 @@
 
     <default class="peg">
       <!-- size = (radius, half-heihgt) -->
-      <geom type="box" mass="0.5" size="0.0149 0.0149 0.02" euler="0 0 0"
+      <geom type="box" mass="0.5" size="0.0148 0.0148 0.02" euler="0 0 0"
                 priority="1" condim="6" friction="0.8 0.05 0.001"
                 solimp="0.9 0.95 0.001 0.5 2" solref="0.02 1"/>
     </default>
