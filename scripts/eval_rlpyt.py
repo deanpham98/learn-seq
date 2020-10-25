@@ -58,25 +58,26 @@ def plot_progress(run_path_list):
 # return the evaluation environments. The policy will be tested on each environment
 def eval_envs(config):
     envs = []
-    # test normal: fixed initial position, 0-1mm hole pose error
+    # test normal: fixed initial position, 1mm hole pose error
     env_config = deepcopy(config.env_config)
     env_config["initial_pos_range"] = ([0.]*3, [0.]*3)
     env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
     env_config["wrapper"] = FixedHolePoseErrorWrapper
-    env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = 0.0,
-        hole_rot_error = 0*np.pi / 180,
-        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
-    )
+    # env_config["wrapper_kwargs"] = dict(
+    #     hole_pos_error = 0.0,
+    #     hole_rot_error = 0*np.pi / 180,
+    #     spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+    # )
 
     # envs.append(gym_make(**env_config))
 
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = 0.001,
-        hole_rot_error = 1*np.pi/180,
+        hole_pos_error = np.sqrt(2)/1000,
+        hole_rot_error = np.sqrt(2)*np.pi/180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
     envs.append(gym_make(**env_config))
+
     # test generalization: fixed init position, 2mm hole pose error
     env_config["wrapper_kwargs"] = dict(
         hole_pos_error = 0.002,
@@ -95,13 +96,19 @@ def eval_envs(config):
     env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
 
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = 0.001,
-        hole_rot_error = 1*np.pi/180,
+        hole_pos_error = np.sqrt(2)/1000,
+        hole_rot_error = np.sqrt(2)*np.pi/180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
 
-    # env_config = append_wrapper(env_config,
-    #         wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
+    wrapper = FixedInitialPoseWrapper
+    wrapper_kwargs = dict(
+        dp = np.sqrt(2)/1000,
+        dr = np.sqrt(2) * np.pi/180
+    )
+
+    env_config = append_wrapper(env_config,
+            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
     envs.append(gym_make(**env_config))
 
 
@@ -199,9 +206,10 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
     else:
         obs = env.reset()
     # print("intial pos: {}".format(env.ros_interface.get_ee_pose(frame_pos=env.tf_pos, frame_quat=env.tf_quat)))
-    print("hole pos error: {}".format(env.tf_pos - env.hole_pos))
-    print("hole pos error: {}".format(quat_error(env.hole_quat, env.tf_quat)))
-
+    print("hole pos error: {}".format((env.tf_pos - env.hole_pos)*1000))
+    print("hole rot error: {}".format(180 / np.pi * quat_error(env.hole_quat, env.tf_quat)))
+    print("init pos deviation: {}".format(env.unwrapped.traj_info["p0"]))
+    print("init rot deviation: {}".format(env.unwrapped.traj_info["r0"]))
     while not done:
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
@@ -217,8 +225,9 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
         seq.append(action.item())
         strat.append(env.primitive_list[action.item()][0])
         episode_rew += reward
+        print("T: {}".format())
 
-    return seq, strat, info["success"], episode_rew
+    return seq, strat, info["success"], info["eps_time"], episode_rew
 
 # run the agent in a particular env for N episodes
 def run_agent(agent, env, eps, render=False):
@@ -230,11 +239,12 @@ def run_agent(agent, env, eps, render=False):
     for i in range(eps):
         print("------")
         print("Episode {}".format(i))
-        seq, strat, suc, rew = run_agent_single(agent, env, render=render)
+        seq, strat, suc, t_exec, rew = run_agent_single(agent, env, render=render)
         # episode info
         print("sequence idx: {}".format(seq))
         print("sequence name: {}".format(strat))
         print("success: {}".format(suc))
+        print("execution time: {}".format(t_exec))
         print("episode reward: {}".format(rew))
         no_success += int(suc)
     print("success_rate {}".format(float(no_success)/eps))
@@ -322,11 +332,12 @@ def evaluate_sequence(run_path_list, config, render=False):
                     print("------")
                     print("Episode {}".format(i))
 
-                    seq, strat, suc, rew = run_agent_single(agent, env, render=render)
+                    seq, strat, suc, t_exec, rew = run_agent_single(agent, env, render=render)
                     # episode info
                     print("sequence idx: {}".format(seq))
                     print("sequence name: {}".format(strat))
                     print("success: {}".format(suc))
+                    print("execution time: {}".format(t_exec))
                     print("episode reward: {}".format(rew))
 
 if __name__ == '__main__':

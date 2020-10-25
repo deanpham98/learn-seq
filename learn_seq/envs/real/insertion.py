@@ -42,10 +42,10 @@ class RealInsertionEnv(InsertionBaseEnv):
         type, param = self.primitive_list[action]
         status, t_exec = self.container.run(type, param)
         info = {}
-        if self._eps_time == 0:
-            p, q = self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
-            info["init_pos"] = p
-            info["init_quat"] = q
+        # if self._eps_time == 0:
+        #     p, q = self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
+        #     info["init_pos"] = p
+        #     info["init_quat"] = q
         self._eps_time += t_exec
 
         obs = self._get_obs()
@@ -57,8 +57,10 @@ class RealInsertionEnv(InsertionBaseEnv):
         done = isTimeout or isLimitReach or isSuccess or isRobotError
 
         info.update({"success": isSuccess,
-                "insert_depth": obs[2],
-                "eps_time": self._eps_time})
+                    "insert_depth": obs[2],
+                    "eps_time": self._eps_time,
+                    "mp_time": t_exec,
+                    "mp_status": status})
 
         return self._normalize_obs(obs), reward, done, info
 

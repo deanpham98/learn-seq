@@ -119,26 +119,27 @@ class FixedHolePoseErrorWrapper(StructuredActionSpaceWrapper):
         pos_dir[:2] = pos_dir[:2] / np.linalg.norm(pos_dir)
         hole_pos = self.hole_pos + self.pos_error * pos_dir
 
-        rot_dir = (np.random.random(3) - 0.5) * 3
+        rot_dir = (np.random.random(3) - 0.5) * 2
         rot_dir = rot_dir / np.linalg.norm(rot_dir)
         hole_rot_rel = self.rot_error * rot_dir
         hole_quat = integrate_quat(self.hole_quat, hole_rot_rel, 1)
         self.env.set_task_frame(hole_pos, hole_quat)
         return self.env.reset()
 
-class FixedInitialPoseWrapper(Wrapper):
+class FixedInitialPoseWrapper(BaseInsertionWrapper):
     def __init__(self, env, dp, dr):
         super().__init__(env)
         self.dp = dp
         self.dr = dr
-        env.unwrapped._sample_init_pose = self.unwrapped._sample_init_pose
+        env.unwrapped._sample_init_pose = self._sample_init_pose
 
     def _sample_init_pose(self):
         pos_dir = np.zeros(3)
-        pos_dir[:2] = pos_dir[:2] / np.linalg.norm(pos_dir)
+        pos_dir[:3] = (np.random.random(3) - 0.5) *2
+        pos_dir[:3] = pos_dir[:3] / np.linalg.norm(pos_dir)
         p0 = self.initial_pos_mean + pos_dir*self.dp
 
-        rot_dir = (np.random.random(3) - 0.5) * 3
+        rot_dir = (np.random.random(3) - 0.5) * 2
         rot_dir = rot_dir / np.linalg.norm(rot_dir)
         hole_rot_rel =  rot_dir*self.dr
         q0 = integrate_quat(self.target_quat, hole_rot_rel, 1)
