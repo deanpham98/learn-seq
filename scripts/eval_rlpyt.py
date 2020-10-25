@@ -276,7 +276,6 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         # else:
         #     eval_env_list = eval_envs(config)
         eval_env_list = eval_envs(config)
-
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:
             run_agent(agent, env, eps=eval_eps, render=render)

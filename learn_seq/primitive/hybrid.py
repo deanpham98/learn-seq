@@ -1,8 +1,8 @@
 """ Primitives for hybrid controller"""
 import numpy as np
-from learn_seq.primitive.base import Primitive
+from learn_seq.primitive.base import Primitive, PrimitiveStatus
 from learn_seq.utils.mujoco import integrate_quat, pose_transform,\
-        transform_spatial, similarity_transform, quat_error
+        transform_spatial, similarity_transform, quat_error, inverse_frame
 
 class FixedGainTaskPrimitive(Primitive):
     """Primitives where motion are defined with respect to a task frame, and
@@ -118,15 +118,22 @@ class Move2Target(FixedGainTaskPrimitive):
         # compute tau command
         tau_cmd = self.controller.forward_ctrl(pd, qd, vd, fd, self.S_mat)
 
-        return tau_cmd, self.is_terminate()
+        return tau_cmd, self._status()
 
-    def is_terminate(self):
-        # TODO better if detect steady state?
+    # def is_terminate(self):
+    #     # TODO better if detect steady state?
+    #     isSettle = self.t_exec > self.t_plan*1.05
+    #     isTimeout = self.timeout_count < 0
+    #     if isTimeout or isSettle:
+    #         return True
+    #     return False
+
+    def _status(self):
         isSettle = self.t_exec > self.t_plan*1.05
         isTimeout = self.timeout_count < 0
         if isTimeout or isSettle:
-            return True
-        return False
+            return PrimitiveStatus.SUCCESS
+        return PrimitiveStatus.EXECUTING
 
     def plan(self):
         """Plan a straight path in task space"""
@@ -192,12 +199,13 @@ class Move2Contact(FixedGainTaskPrimitive):
         super().configure(kp, kd, timeout=timeout)
 
     def step(self):
-        # check stop condition
-        done = self.is_terminate()
+        # check status
+        # done = self.is_terminate()
+        status = self._status()
 
         # update time
         self.timeout_count -= self.dt
-        if not done and not self.isContact:
+        if status is PrimitiveStatus.EXECUTING and not self.isContact:
             self.t_exec += self.dt
             # velocity
             vd = self.vt.copy()
@@ -214,7 +222,7 @@ class Move2Contact(FixedGainTaskPrimitive):
         # compute tau command
         tau_cmd = self.controller.forward_ctrl(pd, qd, vd, fd, self.S_mat)
 
-        return tau_cmd, done
+        return tau_cmd, status
 
     def is_terminate(self):
         f_proj = self._project_force()
@@ -231,6 +239,23 @@ class Move2Contact(FixedGainTaskPrimitive):
         else:
             return False
 
+    def _status(self):
+        f_proj = self._project_force()
+        if f_proj < -self.thresh:
+            self.isContact = True
+
+        if self.isContact:
+            self.n_step_settle_count -= 1
+
+        isSettle = self.n_step_settle_count < 0
+        isTimeout = self.timeout_count < 0
+        if isSettle:
+            return PrimitiveStatus.SUCCESS
+        elif isTimeout:
+            return PrimitiveStatus.FAIL
+        else:
+            return PrimitiveStatus.EXECUTING
+
     def plan(self):
         super().plan()
         self.isContact = False
@@ -246,7 +271,6 @@ class Move2Contact(FixedGainTaskPrimitive):
         # project fe to the move direction
         f_proj = f.dot(self.move_dir)
         return f_proj
-
 
 class Displacement(Move2Contact):
     def __init__(self,
@@ -276,7 +300,30 @@ class Displacement(Move2Contact):
         self.delta_d = delta_d
         self.isDisplaceAchieved = False
 
-    def is_terminate(self):
+    # def is_terminate(self):
+    #     f_proj = self._project_force()
+    #     if f_proj < -self.thresh:
+    #         self.isContact = True
+    #
+    #     # calculate displacement
+    #     dp = np.zeros(6)
+    #     p, q = self.robot_state.get_pose()
+    #     dp[:3] = p - self.pr0
+    #     dp[3:] = quat_error(self.qr0, q)
+    #     if np.abs(dp.dot(self.move_dir)) > self.delta_d:
+    #         self.isDisplaceAchieved = True
+    #
+    #     if self.isContact or self.isDisplaceAchieved:
+    #         self.n_step_settle_count -= 1
+    #
+    #     isSettle = self.n_step_settle_count < 0
+    #     isTimeout = self.timeout_count < 0
+    #     if isSettle or isTimeout:
+    #         return True
+    #     else:
+    #         return False
+
+    def _status(self):
         f_proj = self._project_force()
         if f_proj < -self.thresh:
             self.isContact = True
@@ -294,10 +341,15 @@ class Displacement(Move2Contact):
 
         isSettle = self.n_step_settle_count < 0
         isTimeout = self.timeout_count < 0
-        if isSettle or isTimeout:
-            return True
+        if isSettle:
+            if self.isDisplaceAchieved:
+                return PrimitiveStatus.SUCCESS
+            else:
+                return PrimitiveStatus.FAIL
+        elif isTimeout:
+            return PrimitiveStatus.FAIL
         else:
-            return False
+            return PrimitiveStatus.EXECUTING
 
     def plan(self):
         super().plan()
@@ -335,11 +387,20 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
         self.S_mat = self._transform_selection_matrix(ft)
         super().configure(kp, kd, timeout=timeout)
 
-    def is_terminate(self):
+    # def is_terminate(self):
+    #     p_task, q_task = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
+    #     if np.linalg.norm(p_task - self.pt) < self.goal_thresh or self.timeout_count < 0:
+    #         return True
+    #     return False
+
+    def _status(self):
         p_task, q_task = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
-        if np.linalg.norm(p_task - self.pt) < self.goal_thresh or self.timeout_count < 0:
-            return True
-        return False
+        if np.linalg.norm(p_task - self.pt) < self.goal_thresh:
+            return PrimitiveStatus.SUCCESS
+        elif self.timeout_count < 0:
+            return PrimitiveStatus.FAIL
+        else:
+            return PrimitiveStatus.EXECUTING
 
     def step(self):
         # update time
@@ -367,8 +428,74 @@ class AdmittanceMotion(FixedGainTaskPrimitive):
         # compute tau command
         tau_cmd = self.controller.forward_ctrl(pd, qd, vd, fd, self.S_mat)
 
-        return tau_cmd, self.is_terminate()
+        return tau_cmd, self._status()
 
     def plan(self):
         super().plan()
         self.p0, self.q0 = self.controller.get_pose_cmd()
+
+class Move2Target2(Move2Target):
+    def __init__(self, *argv, **kwargs):
+        super().__init__(*argv, **kwargs)
+        self.kp_c = np.array([1.1]*6)
+        self.pos_thresh = 5e-4
+        self.rot_thresh = 1e-2
+
+    def step(self):
+        # update time
+        self.t_exec += self.dt
+        self.timeout_count -= self.dt
+
+        # limit execution time
+        if self.t_exec > self.t_plan:
+            self.t_exec = self.t_plan
+
+        # position/orientation command
+        pd = self.p0 + self.vt_synch[:3]*self.t_exec
+        rd = self.vt_synch[3:]*self.t_exec
+        qd = integrate_quat(self.q0, rd, 1)
+
+        # velocity command
+        if self.t_exec < self.t_plan:
+            vd = self.vt_synch.copy()
+        else:
+            vd = np.zeros(6)
+
+        # desired force
+        fd = self.ft
+
+        # update compliant frame
+        p_cmd, q_cmd = self.controller.get_pose_cmd()
+        p, q  = self.robot_state.get_pose()
+        ep = (pd - p)*self.dt
+        er = self.kp_c[3:] * quat_error(q, qd)*self.dt
+        pc = p_cmd + self.kp_c[:3]*ep
+        qc = integrate_quat(q_cmd, er, 1)
+        # compute tau command
+        tau_cmd = self.controller.forward_ctrl(pd, qd, vd, fd, self.S_mat)
+
+        return tau_cmd, self._status()
+
+    def _status(self):
+        p, q = self.robot_state.get_pose()
+        isSuccess = np.linalg.norm(self.pt - p) < self.pos_thresh and \
+                    np.linalg.norm(quat_error(self.qt, q)) < self.rot_thresh
+        isTimeout = self.timeout_count < 0
+        if isTimeout or isSuccess:
+            return PrimitiveStatus.SUCCESS
+        return PrimitiveStatus.EXECUTING
+
+    def plan(self):
+        """Plan a straight path in task space"""
+        super().plan()
+        # plan from the previous command pose
+        self.p0, self.q0 = self.robot_state.get_pose()
+
+        # positional and rotational error
+        err = np.zeros(6)
+        err[:3] = self.pt - self.p0
+        err[3:] = quat_error(self.q0, self.qt)
+
+        t_arr = err / self.vt
+        self.t_plan=  np.max(np.abs(t_arr))
+        self.vt_synch = err / self.t_plan

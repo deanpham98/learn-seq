@@ -1,4 +1,10 @@
+from enum import Enum
 import numpy as np
+
+class PrimitiveStatus(Enum):
+    FAIL = 0
+    EXECUTING = 1
+    SUCCESS = 2
 
 class Primitive(object):
     """Base class for primitives, whose purpose is to generate the input to the
@@ -37,31 +43,37 @@ class Primitive(object):
         time, which is equal to the time if the primitive is executed
         in the real world"""
         self.plan()
-        done = False
+        status = PrimitiveStatus.EXECUTING
         t_start = self.robot_state.get_sim_time()
-        while not done:
+        while status is PrimitiveStatus.EXECUTING:
             # update state
             self.robot_state.update()
             # compute tau_cmd and set
-            tau_cmd, done = self.step()
+            tau_cmd, status = self.step()
             self.robot_state.set_control_torque(tau_cmd)
             # forward dynamic
             self.robot_state.update_dynamic()
 
             if viewer is not None:
                 viewer.render()
+        if status is PrimitiveStatus.FAIL:
+            rew = -2
+        else:
+            rew = 0
+        return self.robot_state.get_sim_time() - t_start, rew
 
-        return self.robot_state.get_sim_time() - t_start
+    # def is_terminate(self):
+    #     """Return whether the primitive is done."""
+    #     raise NotImplementedError
 
-    def is_terminate(self):
-        """Return whether the primitive is done."""
+    def _status(self):
         raise NotImplementedError
 
     def step(self):
         """Short summary.
 
-        :return: The command torque and status of the primitive (done or not)
-        :rtype: tuple(np.array(7), bool)
+        :return: The command torque and status of the primitive
+        :rtype: tuple(np.array(7), PrimitiveStatus)
 
         """
         raise NotImplementedError

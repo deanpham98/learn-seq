@@ -1,4 +1,4 @@
-from .hybrid import Move2Target, Move2Contact, AdmittanceMotion, Displacement
+from .hybrid import Move2Target, Move2Contact, AdmittanceMotion, Displacement, Move2Target2
 
 class PrimitiveContainer:
     def __init__(self,
@@ -12,7 +12,8 @@ class PrimitiveContainer:
                           tf_pos=tf_pos,
                           tf_quat=tf_quat,
                           timeout=timeout)
-        self.move2target = Move2Target(**input_dict)
+        # self.move2target = Move2Target(**input_dict)
+        self.move2target = Move2Target2(**input_dict)
         self.move2contact = Move2Contact(**input_dict)
         self.displacement = Displacement(**input_dict)
         self.admittance = AdmittanceMotion(**input_dict)

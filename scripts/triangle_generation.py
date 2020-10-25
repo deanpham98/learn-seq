@@ -4,7 +4,7 @@ from learn_seq.utils.general import get_mujoco_model_path
 
 SIZE = 0.025
 HEIGHT = 0.04
-CLEARANCE = 0.00001
+CLEARANCE = 0.0001
 
 def generate_hole(point_list, bound, height):
     """
@@ -119,7 +119,7 @@ def generate_hole(point_list, bound, height):
             v_str = ""
             for p in vm:
                 for k in p:
-                    v_str = v_str + "{:1.4f} ".format(k)
+                    v_str = v_str + "{:1.8f} ".format(k)
 
             f.write(t + "<mesh name=\"hole_prism{}\" vertex=\"{}\"/>\n".format(i, v_str))
         f.write("</asset>\n")
