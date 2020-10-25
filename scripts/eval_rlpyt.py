@@ -225,9 +225,13 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
         seq.append(action.item())
         strat.append(env.primitive_list[action.item()][0])
         episode_rew += reward
-        print("T: {}".format())
+        if info["mp_status"] == 1:
+            status = "success"
+        else:
+            status = "fail"
+        print("T: {}, status: {}".format(info["mp_time"], status))
 
-    return seq, strat, info["success"], info["eps_time"], episode_rew
+    return seq, strat, info["success"], info["eps_time"], info["insert_depth"] episode_rew
 
 # run the agent in a particular env for N episodes
 def run_agent(agent, env, eps, render=False):
@@ -236,6 +240,7 @@ def run_agent(agent, env, eps, render=False):
     print("initial pos mean {}".format(env.initial_pos_mean))
     print("initial rot mean {}".format(env.initial_rot_mean))
     no_success = 0
+    t_exec_list = []
     for i in range(eps):
         print("------")
         print("Episode {}".format(i))
@@ -245,9 +250,15 @@ def run_agent(agent, env, eps, render=False):
         print("sequence name: {}".format(strat))
         print("success: {}".format(suc))
         print("execution time: {}".format(t_exec))
+        print("insertion depth {}".format(depth))
         print("episode reward: {}".format(rew))
         no_success += int(suc)
+        if suc:
+            t_exec_list.append(t_exec)
+
     print("success_rate {}".format(float(no_success)/eps))
+    print("mean success time {}".format(np.mean(t_exec_list)))
+    print("std success time {}".format(np.std(t_exec_list)))
     env.close()
 
 # initialize the agent with the trained model, generate evaluation envs and
@@ -331,11 +342,12 @@ def evaluate_sequence(run_path_list, config, render=False):
                     print("------")
                     print("Episode {}".format(i))
 
-                    seq, strat, suc, t_exec, rew = run_agent_single(agent, env, render=render)
+                    seq, strat, suc, t_exec, depth, rew = run_agent_single(agent, env, render=render)
                     # episode info
                     print("sequence idx: {}".format(seq))
                     print("sequence name: {}".format(strat))
                     print("success: {}".format(suc))
+                    print("insertion depth {}".format(depth))
                     print("execution time: {}".format(t_exec))
                     print("episode reward: {}".format(rew))
 

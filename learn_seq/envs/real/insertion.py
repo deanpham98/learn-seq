@@ -139,10 +139,11 @@ class RealInsertionEnv(InsertionBaseEnv):
         return np.max(np.abs(p[:2] - self.target_pos[:2])) > self.obs_up_limit[0]
 
     def _is_success(self, p):
-        pos_thresh = 0.01
-        isDepthReach = p[2] < self.target_pos[2]*self.depth_thresh
-        isInHole = np.linalg.norm(p[:2] - self.target_pos[:2]) < pos_thresh
-        return (isDepthReach and isInHole)
+        # pos_thresh = 0.01
+        # isDepthReach = p[2] < self.target_pos[2]*self.depth_thresh
+        # isInHole = np.linalg.norm(p[:2] - self.target_pos[:2]) < pos_thresh
+        # return (isDepthReach and isInHole)
+        return np.linalg.norm(p[:3] - self.target_pos[:3]) < self.goal_thresh
 
     def _is_robot_error(self):
         robot_mode = self.ros_interface.get_robot_mode()
