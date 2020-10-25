@@ -196,8 +196,13 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         isTimeout = self._eps_time > 20.
         done = isTimeout or isLimitReach or isSuccess
 
+        if rew == 0:
+            status = 1
+        else:
+            status = 0
         info = {"success": isSuccess,
-                "insert_depth": obs[2]}
+                "insert_depth": obs[2],
+                "mp_status": status}
 
         return self._normalize_obs(obs), reward, done, info
         # return obs, reward, done, info

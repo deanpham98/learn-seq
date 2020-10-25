@@ -2,7 +2,7 @@ import numpy as np
 import gym
 from gym import Wrapper
 from gym.core import ObservationWrapper
-from learn_seq.utils.mujoco import integrate_quat
+from learn_seq.utils.mujoco import integrate_quat, inverse_frame, pose_transform, quat2vec
 from learn_seq.utils.gym import DynamicDiscrete
 from learn_seq.mujoco_wrapper import MujocoModelWrapper
 
@@ -103,7 +103,7 @@ class HolePoseWrapper(BaseInsertionWrapper):
         self.model_wrapper = MujocoModelWrapper(env.model)
         self.model_wrapper.set_hole_pose(hole_body_pos, hole_body_quat)
         p, q, _ = env.unwrapped._hole_pose_from_model()
-        env.unwrapped.set_task_frame(p, q)
+        env.set_task_frame(p, q)
 
 class QuaternionObservationWrapper(BaseInsertionWrapper):
     def __init__(self, env):
@@ -166,3 +166,84 @@ class FixedHolePoseErrorWrapper(StructuredActionSpaceWrapper):
         hole_quat = integrate_quat(self.hole_quat, hole_rot_rel, 1)
         self.env.set_task_frame(hole_pos, hole_quat)
         return self.env.reset()
+
+class ControllerCommandWrapper(BaseInsertionWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.obs_size = self.observation_space.shape[0]
+        obs_low_lim = self.observation_space.low
+        obs_high_lim = self.observation_space.high
+        obs_low_lim = np.hstack([obs_low_lim, obs_low_lim[:6]])
+        obs_high_lim = np.hstack([obs_high_lim, obs_high_lim[:6]])
+        self.observation_space = gym.spaces.Box(obs_low_lim, obs_high_lim)
+
+    def reset(self):
+        obs = self.env.reset()
+        tf_pos, tf_quat = self.get_task_frame()
+        inv_tf_pos, inv_tf_quat = inverse_frame(tf_pos, tf_quat)
+        p_cmd, q_cmd = self.env.controller.get_pose_control_cmd()
+        p_cmd, q_cmd = pose_transform(p_cmd, q_cmd, inv_tf_pos, inv_tf_quat)
+        r_cmd = quat2vec(q_cmd, self.env.unwrapped.r_prev)
+        pose_norm = self.env.unwrapped._normalize_obs(np.hstack([p_cmd, r_cmd]))
+        new_obs = np.hstack([obs[:self.obs_size], pose_norm, obs[self.obs_size:]])
+        return new_obs
+
+    def step(self, action, **kwargs):
+        obs, reward, done, info = self.env.step(action, **kwargs)
+        tf_pos, tf_quat = self.get_task_frame()
+        inv_tf_pos, inv_tf_quat = inverse_frame(tf_pos, tf_quat)
+        p_cmd, q_cmd = self.env.controller.get_pose_control_cmd()
+        p_cmd, q_cmd = pose_transform(p_cmd, q_cmd, inv_tf_pos, inv_tf_quat)
+        r_cmd = quat2vec(q_cmd, self.env.unwrapped.r_prev)
+        pose_norm = self.env.unwrapped._normalize_obs(np.hstack([p_cmd, r_cmd]))
+        new_obs = np.hstack([obs[:self.obs_size], pose_norm, obs[self.obs_size:]])
+        return new_obs, reward, done, info
+
+class TaskFrameWrapper(BaseInsertionWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.obs_size = self.observation_space.shape[0]
+        obs_low_lim = self.observation_space.low
+        obs_high_lim = self.observation_space.high
+        obs_low_lim = np.hstack([obs_low_lim, obs_low_lim[:6]])
+        obs_high_lim = np.hstack([obs_high_lim, obs_high_lim[:6]])
+        self.observation_space = gym.spaces.Box(obs_low_lim, obs_high_lim)
+
+    def reset(self):
+        obs = self.env.reset()
+        tf_pos, tf_quat = self.get_task_frame()
+        # tf_r = quat2vec(tf_quat, self.env.unwrapped.r_prev)
+        tf_r = quat2vec(tf_quat)
+        new_obs = np.hstack([obs[:self.obs_size], tf_pos, tf_r, obs[self.obs_size:]])
+        return new_obs
+
+    def step(self, action, **kwargs):
+        obs, reward, done, info = self.env.step(action, **kwargs)
+        tf_pos, tf_quat = self.get_task_frame()
+        tf_r = quat2vec(tf_quat, self.env.unwrapped.r_prev)
+        new_obs = np.hstack([obs[:self.obs_size], tf_pos, tf_r, obs[self.obs_size:]])
+        return new_obs, reward, done, info
+
+
+class PrimitiveStateWrapper(BaseInsertionWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.obs_size = self.observation_space.shape[0]
+        obs_low_lim = self.observation_space.low
+        obs_high_lim = self.observation_space.high
+        obs_low_lim = np.hstack([obs_low_lim,  [0, 0]])
+        obs_high_lim = np.hstack([obs_high_lim, [1, 1]])
+        self.observation_space = gym.spaces.Box(obs_low_lim, obs_high_lim)
+
+    def reset(self):
+        obs = self.env.reset()
+        new_obs = np.hstack([obs[:self.obs_size], [1, 0], obs[self.obs_size:]])
+        return new_obs
+
+    def step(self, action, **kwargs):
+        obs, reward, done, info = self.env.step(action, **kwargs)
+        if info["mp_status"] == 1:
+            new_obs = np.hstack([obs[:self.obs_size], [1, 0], obs[self.obs_size:]])
+        else:
+            new_obs = np.hstack([obs[:self.obs_size], [0, 1], obs[self.obs_size:]])
+        return new_obs, reward, done, info

@@ -284,3 +284,14 @@ def inverse_frame(p, q):
     pi, qi = np.zeros(3), np.zeros(4)
     functions.mju_negPose(pi, qi, p, q)
     return pi, qi
+
+def mat2quat(R):
+    R = R.flatten()
+    q = np.zeros(4)
+    mujoco_py.functions.mju_mat2Quat(q, R)
+    return q
+
+def mul_quat(q1, q2):
+    q = np.zeros(4)
+    mujoco_py.functions.mju_mulQuat(q, q1, q2)
+    return q
