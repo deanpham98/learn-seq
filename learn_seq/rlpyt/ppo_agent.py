@@ -8,6 +8,19 @@ from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 
 DEFAULT_HIDDEN_LAYERS = [64, 64]
 
+class CustomAgent(CategoricalPgAgent):
+    def eval_step(self, observation, prev_action, prev_reward):
+        prev_action = self.distribution.to_onehot(prev_action)
+        model_inputs = buffer_to((observation, prev_action, prev_reward),
+            device=self.device)
+        pi, value = self.model(*model_inputs)
+        dist_info = DistInfo(prob=pi)
+        # action = self.distribution.sample(dist_info)
+        action = torch.argmax(pi)
+        agent_info = AgentInfo(dist_info=dist_info, value=value)
+        action, agent_info = buffer_to((action, agent_info), device="cpu")
+        return AgentStep(action=action, agent_info=agent_info)
+
 # mixin is to convert env specs to model parameters
 class InsertionEnvMixin:
     def make_env_to_model_kwargs(self, env_spaces):
@@ -126,10 +139,10 @@ class PPOStructuredRealModel(PPOStructuredInsertionModel):
 
         return pi, v
 
-class PPOStructuredInsertionAgent(StructuredInsertionEnvMixin, CategoricalPgAgent):
+class PPOStructuredInsertionAgent(StructuredInsertionEnvMixin, CustomAgent):
     def __init__(self, ModelCls=PPOStructuredInsertionModel, **kwargs):
         super().__init__(ModelCls=ModelCls, **kwargs)
 
-class PPOStructuredRealAgent(StructuredInsertionEnvMixin, CategoricalPgAgent):
+class PPOStructuredRealAgent(StructuredInsertionEnvMixin, CustomAgent):
     def __init__(self, ModelCls=PPOStructuredRealModel, **kwargs):
         super().__init__(ModelCls=ModelCls, **kwargs)

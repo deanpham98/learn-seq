@@ -1,5 +1,8 @@
 import sys
+from copy import deepcopy
+import json
 import numpy as np
+import matplotlib.pyplot as plt
 import rospy
 import actionlib
 from franka_controllers.msg import HybridControllerState, Gain
@@ -8,15 +11,16 @@ from franka_motion_primitive.srv import RunPrimitive, SetInitialForce,\
 from franka_motion_primitive.msg import MotionGeneratorState, PrimitiveType,\
                 MoveToPoseParam, ConstantVelocityParam, DisplacementParam, AdmittanceMotionParam
 from franka_msgs.msg import FrankaState, ErrorRecoveryAction, ErrorRecoveryActionGoal
-from learn_seq.utils.mujoco import pose_transform, inverse_frame
+from learn_seq.utils.mujoco import pose_transform, inverse_frame, quat2vec
 
 FRANKA_ERROR_MODE = 4
-KP_DEFAULT = np.array([1500.]*3 + [60, 60, 30])
+KP_DEFAULT = np.array([2000.] + [1500.]*2 + [60, 60, 30])
 KD_DEFAULT = 2*np.sqrt(KP_DEFAULT)
 TIMEOUT_DEFAULT = 5
 
 class FrankaRosInterface:
     def __init__(self,):
+        self._record = False
         rospy.init_node("interface")
         # state
         self._state = {
@@ -49,6 +53,7 @@ class FrankaRosInterface:
         self.serv_run_primitive = rospy.ServiceProxy("/motion_generator/run_primitive", RunPrimitive)
         # error recovery action server
         self._recovery_action_client = actionlib.SimpleActionClient('/franka_control/error_recovery', ErrorRecoveryAction)
+        self.reset_record_data()
         # wait until subscriber is on
         timeout = 0.
         while self._state["t"] is None:
@@ -65,14 +70,82 @@ class FrankaRosInterface:
         self._state["pd"] = np.array(msg.pd)
         self._state["q"] = np.array(msg.q)
         self._state["qd"] = np.array(msg.qd)
+        if self._record:
+            self._record_data["p"].append([msg.time, msg.p])
+            self._record_data["pd"].append([msg.time, msg.pd])
+            self._record_data["q"].append([msg.time, msg.q])
+            self._record_data["qd"].append([msg.time, msg.qd])
 
     def _sub_motion_gen_callback(self, msg):
         # self._state["f"] = np.array(msg.f_ee)
         self._state["f"] = np.array(msg.f_s)
         self._state["fd"] = np.array(msg.fd)
+        if self._record:
+            self._record_data["f"].append([msg.stamp, msg.f_s])
+            self._record_data["fd"].append([msg.stamp, msg.fd])
 
     def _sub_franka_state_callback(self, msg):
         self._state["mode"] = msg.robot_mode
+
+    def start_record(self):
+        self._record = True
+        self.reset_record_data()
+
+    def reset_record_data(self):
+        self._record_data = {
+            "p": [],
+            "pd": [],
+            "q": [],
+            "qd": [],
+            "f": [],
+            "fd": []
+        }
+
+    def stop_record(self, save_path=None):
+        self._record = False
+        if save_path is not None:
+            with open(save_path, "w") as f:
+                json.dumps(self._record_data, f)
+
+    def plot_pose(self):
+        fig, ax = plt.subplots(3, 2)
+        data =deepcopy(self._record_data)
+        for k in self._record_data.keys():
+            t = np.array([i[0] for i in data[k]])
+            if k is "q" or k is "qd":
+                d = np.array([quat2vec(np.array(i[1])) for i in data[k]])
+            else:
+                d = np.array([i[1] for i in data[k]])
+            t = t - t[0]
+            data[k] = (t, d)
+        for i in range(3):
+            ax[i, 0].plot(data["p"][0], data["p"][1][:, i])
+            ax[i, 1].plot(data["q"][0], data["q"][1][:, i])
+            ax[i, 0].plot(data["pd"][0], data["pd"][1][:, i])
+            ax[i, 1].plot(data["qd"][0], data["qd"][1][:, i])
+            ax[i, 0].legend(["c", "d"])
+            ax[i, 1].legend(["c", "d"])
+        fig.suptitle("position and orientation")
+        return ax
+
+    def plot_force(self):
+        fig, ax = plt.subplots(3, 2)
+        data =deepcopy(self._record_data)
+        for k in self._record_data.keys():
+            t = np.array([i[0] for i in data[k]])
+            if k is "q" or k is "qd":
+                d = np.array([quat2vec(np.array(i[1])) for i in data[k]])
+            else:
+                d = np.array([i[1] for i in data[k]])
+            t = t - t[0]
+            data[k] = (t, d)
+        for i in range(3):
+            for j in range(2):
+                ax[i, j].plot(data["f"][0], data["f"][1][:, i+3*j])
+                ax[i, j].plot(data["fd"][0], data["fd"][1][:, i+3*j])
+                ax[i, j].legend(["c", "d"])
+        fig.suptitle("force")
+        return ax
 
     def run_primitive(self, cmd):
         # print("run primitive {}", action)
