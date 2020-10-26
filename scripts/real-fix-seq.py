@@ -1,22 +1,228 @@
+import time
 import numpy as np
 from copy import deepcopy
 from learn_seq.ros.ros_interface import FrankaRosInterface, FRANKA_ERROR_MODE
 from learn_seq.primitive.real_container import RealPrimitiveContainer
-from learn_seq.utils.mujoco import mat2quat, mul_quat
+from learn_seq.utils.mujoco import mat2quat, mul_quat, integrate_quat
 
 # no runs
 N = 10
 
 # peg transformation matrix
-T_HOLE = np.array([0.973253,0.228719,-0.0211343,0,0.228779,-0.973468,0.000469316,0,-0.0204666,-0.00529194,-0.999777, 0,\
-                   0.531149,0.0750407,0.152897,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.973253,0.228719,-0.0211343,0,0.228779,-0.973468,0.000469316,0,-0.0204666,-0.00529194,-0.999777, 0,\
+#                    0.531149,0.0750407,0.152897,1]).reshape((4, 4)).T
+# square hole
+# T_HOLE = np.array([0.998274,0.0577803,0.00952637,0,0.0575972,-0.998159,0.0184873,0,0.0105772,-0.0179071,-0.999784, 0,\
+#                    0.529274,-0.122375,0.142785,1]).reshape((4, 4)).T
+# triangle hole
+T_HOLE = np.array([0.996274,0.0852166,-0.0125563,0,0.0852256,-0.996352,0.000177037,0,-0.0124957,-0.00124652,-0.999921, 0,\
+                   0.534215,-0.0624717,0.14331,1]).reshape((4, 4)).T
+
+SHAPE="round"
+
 HOLE_DEPTH = 0.02
+GOAL_THRESH = 4e-3
 # stiffness
 KP = np.array([2500, 1500, 1500] + [60, 60, 30])
 KD = 2*np.sqrt(KP)
 
+def round_mp_list():
+    # params
+
+    mp_list = []
+    # move x direction 5mm
+    # dp = 5./1000
+    # param = dict(
+    #     u=np.array([1, 0, 0, 0 ,0 ,0]),
+    #     s=0.05,
+    #     ft=np.zeros(6),
+    #     delta_d=dp,
+    #     fs=10.,
+    #     kp=KP,
+    #     kd=KD,
+    #     timeout=3.
+    # )
+    # mp_list.append(("displacement", deepcopy(param)))
+
+    # rotate y direction
+    dp = 5*np.pi/180
+    param = dict(
+        u=np.array([0, 0, 0, 0 ,-1 ,0]),
+        s=0.1,
+        ft=np.zeros(6),
+        delta_d=dp,
+        fs=1.,
+        kp=KP,
+        kd=KD,
+        timeout=3.
+    )
+    mp_list.append(("displacement", deepcopy(param)))
+
+    # move z until contact
+    param = dict(
+        u=np.array([0, 0, -1, 0 ,0 ,0]),
+        s=0.01,
+        ft=np.zeros(6),
+        fs=3.,
+        kp=KP,
+        kd=KD,
+        timeout=3.
+    )
+    mp_list.append(("move2contact", deepcopy(param)))
+
+    # move -x until contact
+    param = dict(
+        u=np.array([-1, 0, 0, 0 ,0 ,0]),
+        s=0.005,
+        ft=np.array([0, 0, -3, 0, 0, 0]),
+        fs=5.,
+        kp=KP,
+        kd=KD,
+        timeout=5.
+    )
+    mp_list.append(("move2contact", deepcopy(param)))
+
+    # rotate y until contact
+    param = dict(
+        u=np.array([0, 0, 0, 0 ,1 ,0]),
+        s=0.04,
+        ft=np.array([0, 0, -3, 0, 0, 0]),
+        fs=0.5,
+        kp=KP,
+        kd=KD,
+        timeout=5.
+    )
+    mp_list.append(("move2contact", deepcopy(param)))
+
+    # insert
+    kd_adt = np.array([0.01]*3 + [0.15]*3)
+    f = 8.
+    kp_insert =[500, 500, 500, 50, 50, 50.]
+    kd_insert = [10.]*6
+    param = dict(
+        kd_adt=kd_adt,
+         ft=np.array([0, 0, -f, 0, 0, 0]),
+         pt=np.array([0, 0, -HOLE_DEPTH]),
+         goal_thresh=GOAL_THRESH,
+         kp=kp_insert,
+         kd=kd_insert,
+         timeout=5.
+    )
+    mp_list.append(("admittance", deepcopy(param)))
+    return mp_list
+
+def square_mp_list():
+    mp_list = []
+    # move x direction 5mm
+    # dp = 5./1000
+    # param = dict(
+    #     u=np.array([1, 0, 0, 0 ,0 ,0]),
+    #     s=0.05,
+    #     ft=np.zeros(6),
+    #     delta_d=dp,
+    #     fs=10.,
+    #     kp=KP,
+    #     kd=KD,
+    #     timeout=3.
+    # )
+    # mp_list.append(("displacement", deepcopy(param)))
+
+    # rotate y direction
+    dp = 5*np.pi/180
+    param = dict(
+        u=np.array([0, 0, 0, 0 ,-1 ,0]),
+        s=0.1,
+        ft=np.zeros(6),
+        delta_d=dp,
+        fs=1.,
+        kp=KP,
+        kd=KD,
+        timeout=3.
+    )
+    mp_list.append(("displacement", deepcopy(param)))
+
+    # rotate x direction
+    dp = 5*np.pi/180
+    param = dict(
+        u=np.array([0, 0, 0, -1 , 0 ,0]),
+        s=0.1,
+        ft=np.zeros(6),
+        delta_d=dp,
+        fs=1.,
+        kp=KP,
+        kd=KD,
+        timeout=3.
+    )
+    mp_list.append(("displacement", deepcopy(param)))
+
+
+    # move z until contact
+    param = dict(
+        u=np.array([0, 0, -1, 0 ,0 ,0]),
+        s=0.01,
+        ft=np.zeros(6),
+        fs=3.,
+        kp=KP,
+        kd=KD,
+        timeout=3.
+    )
+    mp_list.append(("move2contact", deepcopy(param)))
+
+    # move -x until contact
+    param = dict(
+        u=np.array([-1, 0, 0, 0 ,0 ,0]),
+        s=0.005,
+        ft=np.array([0, 0, -3, 0, 0, 0]),
+        fs=5.,
+        kp=KP,
+        kd=KD,
+        timeout=5.
+    )
+    mp_list.append(("move2contact", deepcopy(param)))
+
+    # rotate y until contact
+    param = dict(
+        u=np.array([0, 0, 0, 0 ,1 ,0]),
+        s=0.04,
+        ft=np.array([0, 0, -3, 0, 0, 0]),
+        fs=0.5,
+        kp=KP,
+        kd=KD,
+        timeout=5.
+    )
+    mp_list.append(("move2contact", deepcopy(param)))
+
+    # rotate x until contact
+    param = dict(
+        u=np.array([0, 0, 0, 1 ,0 ,0]),
+        s=0.04,
+        ft=np.array([0, 0, -3, 0, 0, 0]),
+        fs=0.5,
+        kp=KP,
+        kd=KD,
+        timeout=5.
+    )
+    mp_list.append(("move2contact", deepcopy(param)))
+
+    # insert
+    kd_adt = np.array([0.01]*3 + [0.15]*3)
+    f = 8.
+    kp_insert =[500, 500, 500, 50, 50, 50.]
+    kd_insert = [10.]*6
+    param = dict(
+        kd_adt=kd_adt,
+         ft=np.array([0, 0, -f, 0, 0, 0]),
+         pt=np.array([0, 0, -HOLE_DEPTH]),
+         goal_thresh=GOAL_THRESH,
+         kp=kp_insert,
+         kd=kd_insert,
+         timeout=5.
+    )
+    mp_list.append(("admittance", deepcopy(param)))
+    return mp_list
+
 class FixSequence:
-    def __init__(self, T_hole):
+    def __init__(self, T_hole, mp_list):
         hole_pos = T_HOLE[:3, 3]
         hole_rot = T_HOLE[:3, :3]
         hole_quat = mat2quat(hole_rot)
@@ -33,7 +239,7 @@ class FixSequence:
         self.tf_quat = hole_quat.copy()
 
         # target pose relative to the task frame
-        self.target_pos = np.array([0., 0, -hole_depth])
+        self.target_pos = np.array([0., 0, -HOLE_DEPTH])
         self.target_quat = np.array([0, 1., 0, 0])
 
         # init pos
@@ -41,112 +247,37 @@ class FixSequence:
         self.init_quat = self.target_quat.copy()
 
         # goal thresh
-        self.goal_thresh = 2e-3
-
-    def _init_mp(self):
-        # params
-
-        self.mp_list = []
-        # move x direction 5mm
-        # dp = 5./1000
-        # param = dict(
-        #     u=np.array([1, 0, 0, 0 ,0 ,0]),
-        #     s=0.05,
-        #     ft=np.zeros(6),
-        #     delta_p=dp,
-        #     fs=10.,
-        #     kp=KP,
-        #     kd=KD,
-        #     timeout=3.
-        # )
-        # self.mp_list.append(("displacement", deepcopy(param)))
-
-        # rotate y direction
-        dp = 5*np.pi/180
-        param = dict(
-            u=np.array([0, 0, 0, 0 ,-1 ,0]),
-            s=0.1,
-            ft=np.zeros(6),
-            delta_p=dp,
-            fs=1.,
-            kp=KP,
-            kd=KD,
-            timeout=3.
-        )
-        self.mp_list.append(("displacement", deepcopy(param)))
-
-        # move z until contact
-        param = dict(
-            u=np.array([0, 0, -1, 0 ,0 ,0]),
-            s=0.005,
-            ft=np.zeros(6),
-            fs=3.,
-            kp=KP,
-            kd=KD,
-            timeout=3.
-        )
-        self.mp_list.append(("move2contact", deepcopy(param)))
-
-        # move -x until contact
-        param = dict(
-            u=np.array([-1, 0, 0, 0 ,0 ,0]),
-            s=0.005,
-            ft=np.zeros([0, 0, -3, 0, 0, 0]),
-            fs=5.,
-            kp=KP,
-            kd=KD,
-            timeout=5.
-        )
-        self.mp_list.append(("move2contact", deepcopy(param)))
-
-        # rotate y until contact
-        param = dict(
-            u=np.array([0, 0, 0, 0 ,1 ,0]),
-            s=0.04,
-            ft=np.zeros([0, 0, -3, 0, 0, 0]),
-            fs=0.5,
-            kp=KP,
-            kd=KD,
-            timeout=5.
-        )
-        self.mp_list.append(("move2contact", deepcopy(param)))
-
-        # insert
-        kd_adt = np.array([0.01]*3 + [0.15]*3),
-        f = 8
-        kp_insert =[500, 500, 500, 50, 50, 50.]
-        kd_insert = [10.]*6
-        param = dict(
-            kd_adt=kd_adt,
-             ft=np.array([0, 0, -f, 0, 0, 0]),
-             pt=np.array([0, 0, -HOLE_DEPTH]),
-             goal_thresh=self.goal_thresh,
-             kp=kp_insert,
-             kd=kd_insert,
-             timeout=5.
-        )
-        self.mp_list.append(("admittance", deepcopy(param)))
+        self.goal_thresh = GOAL_THRESH
+        # mp
+        self.mp_list = mp_list
 
 
     def reset(self, p, q):
         #
         self.traj_time = 0
         self._auto_reset()
+        time.sleep(0.5)
 
         # move ip if inside hole
         pc = self.ros_interface.get_ee_pos()
         if pc[2] < self.tf_pos[2]:
             self.ros_interface.move_up(timeout=2.)
 
+
         # calibrate force
         p0 = self.target_pos.copy()
         p0[2] = 0.01
         q0 = self.target_quat.copy()
         self.ros_interface.move_to_pose(p0, q0, 0.3, self.tf_pos, self.tf_quat, 10)
+
+
         time.sleep(0.5)
         self.ros_interface.set_init_force()
+
+
         # move to reset position
         self.ros_interface.move_to_pose(p, q, 0.1, self.tf_pos, self.tf_quat, 10)
+
 
     def set_task_frame(self, tf_pos, tf_quat):
         self.container.set_task_frame(tf_pos, tf_quat)
@@ -159,19 +290,24 @@ class FixSequence:
             self.ros_interface.error_recovery()
 
     def is_success(self):
-        p, q = self.ros_interface.get_ee_pos(self.tf_pos, self.tf_quat)
+        p, q = self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
         return np.linalg.norm(p[:3] - self.target_pos[:3]) < self.goal_thresh
 
     # run once (don't know estimation error)
     def run_single(self, p, q, record=False):
         # reset
         self.reset(p, q)
+        if record:
+            self.ros_interface.start_record()
         for type, param in self.mp_list:
             status, t_exec = self.container.run(type, param)
             self.traj_time += t_exec
             error = self._auto_reset()
             if error:
                 break
+            # input("test")
+        if record:
+            self.ros_interface.stop_record("fix-seq-traj.npy")
         success = self.is_success()
         return success, self.traj_time
 
@@ -186,27 +322,33 @@ class FixSequence:
             # add hole pos error
             pos_dir = np.zeros(3)
             pos_dir[:3] = (np.random.random(3) - 0.5) * 2
-            pos_dir[:3] = pos_dir[:3] / np.linalg.norm(pos_dir)
+            # pos_dir[:3] = pos_dir[:3] / np.linalg.norm(pos_dir)
+            pos_dir[:3] = pos_dir[:3] / np.max(np.abs(pos_dir))
             hole_pos = self.hole_pos + hole_pos_error * pos_dir
 
             rot_dir = (np.random.random(3) - 0.5) * 2
-            rot_dir = rot_dir / np.linalg.norm(rot_dir)
+            # rot_dir = rot_dir / np.linalg.norm(rot_dir)
+            rot_dir = rot_dir / np.max(np.abs(rot_dir))
             hole_rot_rel = hole_rot_error * rot_dir
             hole_quat = integrate_quat(self.hole_quat, hole_rot_rel, 1)
             self.set_task_frame(hole_pos, hole_quat)
+            print(hole_pos_error*pos_dir*1000, hole_rot_rel*180 / np.pi)
             # init pos
             pos_dir = np.zeros(3)
             pos_dir[:3] = (np.random.random(3) - 0.5) * 2
-            pos_dir[:3] = pos_dir[:3] / np.linalg.norm(pos_dir)
+            # pos_dir[:3] = pos_dir[:3] / np.linalg.norm(pos_dir)
+            pos_dir[:3] = pos_dir[:3] / np.max(np.abs(pos_dir))
             p0 = self.init_pos + delta_init_pos * pos_dir
 
             rot_dir = (np.random.random(3) - 0.5) * 2
-            rot_dir = rot_dir / np.linalg.norm(rot_dir)
+            # rot_dir = rot_dir / np.linalg.norm(rot_dir)
+            rot_dir = rot_dir / np.max(np.abs(rot_dir))
             hole_rot_rel = delta_init_rot * rot_dir
             q0 = integrate_quat(self.init_quat, hole_rot_rel, 1)
+            print(delta_init_pos*pos_dir*1000, hole_rot_rel*180 / np.pi)
 
             success, traj_time = self.run_single(p0, q0)
-            if succses:
+            if success:
                 no_success += 1
                 t_exec.append(traj_time)
 
@@ -245,15 +387,21 @@ def exp_config():
     config.append(c3)
     return config
 
-def eval_fix_seq():
-    fix_seq = FixSequence(T_hole=T_HOLE)
+def eval_fix_seq(shape="round"):
+    if shape == "round":
+        mp_list = round_mp_list()
+    elif shape=="square":
+        mp_list = square_mp_list()
+    fix_seq = FixSequence(T_hole=T_HOLE, mp_list=mp_list)
     # evaluate for different estimation error and init pos
     config = exp_config()
     for c in config:
         fix_seq.run(**c)
 
 def record_single_run():
-    pass
+    fix_seq = FixSequence(T_hole=T_HOLE)
+    fix_seq.run_single(fix_seq.init_pos, fix_seq.init_quat, record=True)
 
 if __name__ == '__main__':
-    eval_fix_seq()
+    eval_fix_seq(SHAPE)
+    # record_single_run()

@@ -157,7 +157,7 @@ class FrankaRosInterface:
             return None, None
 
     def set_init_force(self):
-        print("start calling service SetInitialForce")
+        # print("start calling service SetInitialForce")
         rospy.wait_for_service("/motion_generator/set_initial_force")
         try:
             res = self.serv_set_init_force()
@@ -165,7 +165,7 @@ class FrankaRosInterface:
                 print("Set init force success")
         except rospy.ServiceException as e:
             print("Service SetInitialForce call failed: %s"%e)
-        print("end calling service SetInitialForce")
+        # print("end calling service SetInitialForce")
 
     def error_recovery(self):
         goal = ErrorRecoveryActionGoal()
