@@ -104,8 +104,7 @@ class FrankaRosInterface:
     def stop_record(self, save_path=None):
         self._record = False
         if save_path is not None:
-            with open(save_path, "w") as f:
-                json.dumps(self._record_data, f)
+            np.save(save_path, self._record_data)
 
     def plot_pose(self):
         fig, ax = plt.subplots(3, 2)
@@ -321,3 +320,6 @@ class FrankaRosInterface:
             cmd.kp = kp
             cmd.kd = kd
         return cmd
+
+    def get_ros_time(self):
+        return self._state["t"]

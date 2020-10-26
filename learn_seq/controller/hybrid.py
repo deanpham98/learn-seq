@@ -143,8 +143,10 @@ class StateRecordHybridController(HybridController):
         self._reset_state()
         self.record = True
 
-    def stop_record(self):
+    def stop_record(self, save_path=None):
         self.record = False
+        if save_path is not None:
+            np.save(save_path, self.state_dict)
 
     def forward_ctrl(self, *argv, **kwargs):
         res =  super().forward_ctrl(*argv, **kwargs)

@@ -99,7 +99,13 @@ def evaluate():
     done = False
     print("real task frame {}".format((real_env.tf_pos, real_env.tf_quat)))
     print("real init pose {}".format((real_init_pos, quat2vec(real_init_quat))))
-    real_env.ros_interface.start_record()
+    real_traj_info = {
+        "task_frame": [real_env.tf_pos, real_env.tf_quat],
+        "type": [],
+        "idx": [],
+        "obs": []
+        "t": [],
+    }
     while not done:
         real_obs_seq.append(obs)
         pa = torch.tensor(np.zeros(6))
@@ -111,10 +117,16 @@ def evaluate():
         print(real_env.unwrapped.primitive_list[a])
         obs, reward, done, info = real_env.step(a)
         real_seq.append(action.item())
+        sim_traj_info["t"].append(real_env.unwrapped.robot_state.get_ros_time())
+        sim_traj_info["type"].append(real_env.unwrapped.primitive_list[a][0])
+        sim_traj_info["idx"].append(action.item())
+        sim_traj_info["obs"].append(obs.copy())
+
     print("real seq: {}".format(real_seq))
-    real_env.ros_interface.stop_record()
-    real_env.ros_interface.plot_pose()
-    real_env.ros_interface.plot_force()
+    real_env.ros_interface.stop_record("real_traj.npy")
+    np.save("real_traj_info.npy", real_traj_info)
+    # real_env.ros_interface.plot_pose()
+    # real_env.ros_interface.plot_force()
 
     # sim
     sim_seq = []
@@ -125,6 +137,14 @@ def evaluate():
     print("sim task frame {}".format((sim_env.tf_pos, sim_env.tf_quat)))
     print("sim init pose {}".format((sim_init_pos, quat2vec(sim_init_quat))))
     sim_env.controller.start_record()
+    # sim traj info
+    sim_traj_info = {
+        "task_frame": [sim_env.tf_pos, sim_env.tf_quat],
+        "type": [],
+        "idx": [],
+        "obs": []
+        "t": [],
+    }
     while not done:
         sim_obs_seq.append(obs)
         pa = torch.tensor(np.zeros(6))
@@ -136,22 +156,29 @@ def evaluate():
         print(sim_env.unwrapped.primitive_list[a])
         obs, reward, done, info = sim_env.step(a)
         sim_seq.append(action.item())
-    sim_env.controller.stop_record()
-    sim_env.controller.plot_pos()
-    sim_env.controller.plot_orient()
-    sim_env.controller.plot_key(["f", "fd"])
+        sim_traj_info["type"].append(sim_env.unwrapped.primitive_list[a][0])
+        sim_traj_info["idx"].append(action.item())
+        sim_traj_info["t"].append(sim_env.unwrapped.robot_state.get_sim_time())
+        sim_traj_info["obs"].append(obs.copy())
+
+    sim_env.controller.stop_record("sim_traj.npy")
+    sim_traj_info = np.array(sim_traj_info)
+    np.save("sim_traj_info.npy", sim_traj_info)
+    # sim_env.controller.plot_pos()
+    # sim_env.controller.plot_orient()
+    # sim_env.controller.plot_key(["f", "fd"])
 
     print("sim seq: {}".format(sim_seq))
     real_obs_seq = real_obs_seq[:5]
     # plot
-    fig, ax = plt.subplots(3, 2)
-    for i in range(3):
-        for j in range(2):
-            ax[i, j].plot(range(len(sim_obs_seq)), np.array(sim_obs_seq)[:, i+3*j])
-            ax[i, j].plot(range(len(real_obs_seq)), np.array(real_obs_seq)[:, i+3*j])
-            ax[i, j].legend(["sim", "real"])
-    fig.suptitle("sim obs vs real obs")
-    plt.show()
+    # fig, ax = plt.subplots(3, 2)
+    # for i in range(3):
+    #     for j in range(2):
+    #         ax[i, j].plot(range(len(sim_obs_seq)), np.array(sim_obs_seq)[:, i+3*j])
+    #         ax[i, j].plot(range(len(real_obs_seq)), np.array(real_obs_seq)[:, i+3*j])
+    #         ax[i, j].legend(["sim", "real"])
+    # fig.suptitle("sim obs vs real obs")
+    # plt.show()
 
 if __name__ == '__main__':
     evaluate()

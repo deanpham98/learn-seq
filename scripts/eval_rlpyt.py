@@ -210,6 +210,7 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
     print("hole rot error: {}".format(180 / np.pi * quat_error(env.hole_quat, env.tf_quat)))
     print("init pos deviation: {}".format(env.unwrapped.traj_info["p0"]))
     print("init rot deviation: {}".format(env.unwrapped.traj_info["r0"]))
+    env.controller.start_record()
     while not done:
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
@@ -230,8 +231,9 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
         else:
             status = "fail"
         print("T: {}, status: {}".format(info["mp_time"], status))
+    env.controller.stop_record("test.npy")
 
-    return seq, strat, info["success"], info["eps_time"], info["insert_depth"] episode_rew
+    return seq, strat, info["success"], info["eps_time"], info["insert_depth"], episode_rew
 
 # run the agent in a particular env for N episodes
 def run_agent(agent, env, eps, render=False):
@@ -244,7 +246,7 @@ def run_agent(agent, env, eps, render=False):
     for i in range(eps):
         print("------")
         print("Episode {}".format(i))
-        seq, strat, suc, t_exec, rew = run_agent_single(agent, env, render=render)
+        seq, strat, suc, t_exec, depth, rew = run_agent_single(agent, env, render=render)
         # episode info
         print("sequence idx: {}".format(seq))
         print("sequence name: {}".format(strat))
