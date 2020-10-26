@@ -18,7 +18,7 @@ class RealInsertionEnv(InsertionBaseEnv):
                  peg_rot_range,
                  initial_pos_range,
                  initial_rot_range,
-                 depth_thresh=0.95,
+                 goal_thresh=1e-3,
                  **controller_kwargs):
         self.ros_interface = FrankaRosInterface()
         self.container = RealPrimitiveContainer(self.ros_interface, hole_pos, hole_quat)
@@ -31,7 +31,8 @@ class RealInsertionEnv(InsertionBaseEnv):
                          initial_pos_range=initial_pos_range,
                          initial_rot_range=initial_rot_range)
         self._eps_time = 0
-        self.depth_thresh = depth_thresh
+        # self.depth_thresh = depth_thresh
+        self.goal_thresh = goal_thresh
 
         # kp_init
         self.kp_init = controller_kwargs.get("kp_init", KP_DEFAULT)

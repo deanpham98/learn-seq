@@ -9,7 +9,7 @@ from learn_seq.mujoco_wrapper import MujocoModelWrapper
 class BaseInsertionWrapper(Wrapper):
     def __init__(self, env):
         super().__init__(env)
-        self.robot_state = env.robot_state
+        # self.robot_state = env.robot_state
 
     def get_task_frame(self):
         return self.env.get_task_frame()
@@ -91,19 +91,59 @@ class InitialPoseWrapper(BaseInsertionWrapper):
         env.unwrapped.initial_pos_mean = p0
         env.unwrapped.initial_rot_mean = r0
 
-class HolePoseWrapper(BaseInsertionWrapper):
-    """Change hole pose in the mujoco xml model.
+# class FixedHolePoseErrorWrapper(StructuredActionSpaceWrapper):
+#     """Vary the hole position virtually, and assume the `hole_pos` and
+#     `hole_quat` attribute of environment is the true hole pose.
+#     Use for training with RL
+#
+#     :param tuple hole_pos_error_range: lower bound and upper bound of hole pos error.
+#                                  Example: ([-0.001]*3, [0.001]*3)
+#     :param tuple hole_rot_error_range: lower bound and upper bound of hole orientation error.
+#
+#     """
+#     def __init__(self, env,
+#                  hole_pos_error,
+#                  hole_rot_error,
+#                  spaces_idx_list):
+#         super().__init__(env, hole_pos_error, hole_rot_error, spaces_idx_list)
+#         self.pos_error = hole_pos_error
+#         self.rot_error = hole_rot_error
+#         # true hole pose
+#         self.hole_pos = env.tf_pos.copy()
+#         self.hole_quat = env.tf_quat.copy()
+#
+#     def reset(self):
+#         # add noise to create virtual estimated hole pose
+#         pos_dir = np.zeros(3)
+#         pos_dir[:2] = (np.random.random(2) - 0.5) * 2
+#         pos_dir[:2] = pos_dir[:2] / np.linalg.norm(pos_dir)
+#         hole_pos = self.hole_pos + self.pos_error * pos_dir
+#
+#         rot_dir = (np.random.random(3) - 0.5) * 2
+#         rot_dir = rot_dir / np.linalg.norm(rot_dir)
+#         hole_rot_rel = self.rot_error * rot_dir
+#         hole_quat = integrate_quat(self.hole_quat, hole_rot_rel, 1)
+#         self.env.set_task_frame(hole_pos, hole_quat)
+#         return self.env.reset()
 
-    :param np.array(3) hole_body_pos: the position of the "hole" body object in the xml model
-    :param np.array(4) hole_body_quat: orientation (in quaternion)
-
-    """
-    def __init__(self, env, hole_body_pos, hole_body_quat):
+class FixedInitialPoseWrapper(BaseInsertionWrapper):
+    def __init__(self, env, dp, dr):
         super().__init__(env)
-        self.model_wrapper = MujocoModelWrapper(env.model)
-        self.model_wrapper.set_hole_pose(hole_body_pos, hole_body_quat)
-        p, q, _ = env.unwrapped._hole_pose_from_model()
-        env.set_task_frame(p, q)
+        self.dp = dp
+        self.dr = dr
+        env.unwrapped._sample_init_pose = self._sample_init_pose
+
+    def _sample_init_pose(self):
+        pos_dir = np.zeros(3)
+        pos_dir[:3] = (np.random.random(3) - 0.5) *2
+        pos_dir[:3] = pos_dir[:3] / np.linalg.norm(pos_dir)
+        p0 = self.initial_pos_mean + pos_dir*self.dp
+
+        rot_dir = (np.random.random(3) - 0.5) * 2
+        rot_dir = rot_dir / np.linalg.norm(rot_dir)
+        hole_rot_rel =  rot_dir*self.dr
+        q0 = integrate_quat(self.target_quat, hole_rot_rel, 1)
+        return p0, q0
 
 class QuaternionObservationWrapper(BaseInsertionWrapper):
     def __init__(self, env):
@@ -157,11 +197,13 @@ class FixedHolePoseErrorWrapper(StructuredActionSpaceWrapper):
         # add noise to create virtual estimated hole pose
         pos_dir = np.zeros(3)
         pos_dir[:2] = (np.random.random(2) - 0.5) * 2
-        pos_dir[:2] = pos_dir[:2] / np.linalg.norm(pos_dir)
+        # pos_dir[:2] = pos_dir[:2] / np.linalg.norm(pos_dir)
+        pos_dir[:2] = pos_dir[:2] / np.max(np.abs(pos_dir[:2]))
         hole_pos = self.hole_pos + self.pos_error * pos_dir
 
         rot_dir = (np.random.random(3) - 0.5) * 2
-        rot_dir = rot_dir / np.linalg.norm(rot_dir)
+        # rot_dir = rot_dir / np.linalg.norm(rot_dir)
+        rot_dir = rot_dir / np.max(np.abs(rot_dir))
         hole_rot_rel = self.rot_error * rot_dir
         hole_quat = integrate_quat(self.hole_quat, hole_rot_rel, 1)
         self.env.set_task_frame(hole_pos, hole_quat)
@@ -247,3 +289,17 @@ class PrimitiveStateWrapper(BaseInsertionWrapper):
         else:
             new_obs = np.hstack([obs[:self.obs_size], [0, 1], obs[self.obs_size:]])
         return new_obs, reward, done, info
+
+class HolePoseWrapper(BaseInsertionWrapper):
+    """Change hole pose in the mujoco xml model.
+
+    :param np.array(3) hole_body_pos: the position of the "hole" body object in the xml model
+    :param np.array(4) hole_body_quat: orientation (in quaternion)
+
+    """
+    def __init__(self, env, hole_body_pos, hole_body_quat):
+        super().__init__(env)
+        self.model_wrapper = MujocoModelWrapper(env.model)
+        self.model_wrapper.set_hole_pose(hole_body_pos, hole_body_quat)
+        p, q, _ = env.unwrapped._hole_pose_from_model()
+        env.set_task_frame(p, q)

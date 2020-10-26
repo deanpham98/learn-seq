@@ -5,6 +5,9 @@ from rlpyt.models.mlp import MlpModel
 from rlpyt.agents.pg.categorical import CategoricalPgAgent
 from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
+from rlpyt.distributions.categorical import Categorical, DistInfo
+from rlpyt.agents.pg.base import AgentInfo
+from rlpyt.agents.base import AgentStep
 
 DEFAULT_HIDDEN_LAYERS = [64, 64]
 

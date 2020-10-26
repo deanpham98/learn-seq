@@ -11,10 +11,10 @@ from learn_seq.utils.rlpyt import gym_make, load_agent_state_dict
 from learn_seq.utils.mujoco import quat2vec, integrate_quat
 from learn_seq.controller.hybrid import StateRecordHybridController
 
-SIM_EXP_NAME = "prim-rew-5mm-29"
-SIM_RUN_NAME = "run_square_10_09_12_52"
-REAL_EXP_NAME = "real-prim-rew-1-10"
-REAL_RUN_NAME = "checkpoint-square"
+SIM_EXP_NAME = "test-ff-pr-13"
+SIM_RUN_NAME = "run_square_10_25_13_05"
+REAL_EXP_NAME = "real-15-10"
+REAL_RUN_NAME = "run_square_10_25_13_05"
 
 def compare_envs(sim_config, real_config):
     sim_env_config = deepcopy(sim_config.env_config)
@@ -43,9 +43,9 @@ def compare_envs(sim_config, real_config):
     return sim_env, real_env
 
 def evaluate():
-    initial_pos = np.array([0.005, 0, 0.01])
+    initial_pos = np.array([0.001, 0.000, 0.01])
     initial_quat = np.array([0, 1., 0, 0])
-    r = np.array([0., 1., 0]) * 3*np.pi/180
+    r = np.array([1., 0., 0]) * 1*np.pi/180
     initial_quat = integrate_quat(initial_quat, r, 1)
 
     # load config
@@ -103,24 +103,25 @@ def evaluate():
         "task_frame": [real_env.tf_pos, real_env.tf_quat],
         "type": [],
         "idx": [],
-        "obs": []
+        "obs": [],
         "t": [],
     }
+    real_env.ros_interface.start_record()
     while not done:
         real_obs_seq.append(obs)
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
-        # action = agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
-        action = real_agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        action = real_agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        # action = real_agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
         action = action.action
         a = np.array(action)
         print(real_env.unwrapped.primitive_list[a])
         obs, reward, done, info = real_env.step(a)
         real_seq.append(action.item())
-        sim_traj_info["t"].append(real_env.unwrapped.robot_state.get_ros_time())
-        sim_traj_info["type"].append(real_env.unwrapped.primitive_list[a][0])
-        sim_traj_info["idx"].append(action.item())
-        sim_traj_info["obs"].append(obs.copy())
+        real_traj_info["t"].append(real_env.unwrapped.ros_interface.get_ros_time())
+        real_traj_info["type"].append(real_env.unwrapped.primitive_list[a][0])
+        real_traj_info["idx"].append(action.item())
+        real_traj_info["obs"].append(obs.copy())
 
     print("real seq: {}".format(real_seq))
     real_env.ros_interface.stop_record("real_traj.npy")
@@ -142,15 +143,15 @@ def evaluate():
         "task_frame": [sim_env.tf_pos, sim_env.tf_quat],
         "type": [],
         "idx": [],
-        "obs": []
+        "obs": [],
         "t": [],
     }
     while not done:
         sim_obs_seq.append(obs)
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
-        # action = agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
-        action = sim_agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        action = sim_agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        # action = sim_agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
         action = action.action
         a = np.array(action)
         print(sim_env.unwrapped.primitive_list[a])
