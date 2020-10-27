@@ -4,7 +4,7 @@ from learn_seq.utils.general import get_mujoco_model_path
 
 SIZE = 0.025
 HEIGHT = 0.04
-CLEARANCE = 0.0001
+CLEARANCE = 0.0005
 
 def generate_hole(point_list, bound, height):
     """
@@ -166,7 +166,7 @@ def generate_prism(size, height, clearance=0.0001):
     v_str = ""
     for l in v:
         for k in l:
-            v_str = v_str + "{:1.4f} ".format(k)
+            v_str = v_str + "{:1.8f} ".format(k)
 
     # tab character
     t = "  "
