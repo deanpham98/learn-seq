@@ -17,6 +17,9 @@ class BaseInsertionWrapper(Wrapper):
     def set_task_frame(self, *argv, **kwargs):
         return self.env.set_task_frame(*argv, **kwargs)
 
+    def step(self, action, **kwargs):
+        return self.env.step(action, **kwargs)
+
 class TrainInsertionWrapper(BaseInsertionWrapper):
     """Vary the hole position virtually, and assume the `hole_pos` and
     `hole_quat` attribute of environment is the true hole pose.
