@@ -72,8 +72,8 @@ def eval_envs(config):
     # envs.append(gym_make(**env_config))
 
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = np.sqrt(2)/1000,
-        hole_rot_error = np.sqrt(2)*np.pi/180,
+        hole_pos_error = 1./1000,
+        hole_rot_error = 1.*np.pi/180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
     envs.append(gym_make(**env_config))
@@ -96,15 +96,15 @@ def eval_envs(config):
     env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
 
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = np.sqrt(2)/1000,
-        hole_rot_error = np.sqrt(2)*np.pi/180,
+        hole_pos_error = 1./1000,
+        hole_rot_error = 1.*np.pi/180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
 
     wrapper = FixedInitialPoseWrapper
     wrapper_kwargs = dict(
-        dp = np.sqrt(2)/1000,
-        dr = np.sqrt(2) * np.pi/180
+        dp = 1./1000,
+        dr = 1. * np.pi/180
     )
 
     env_config = append_wrapper(env_config,
@@ -210,12 +210,12 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
     print("hole rot error: {}".format(180 / np.pi * quat_error(env.hole_quat, env.tf_quat)))
     print("init pos deviation: {}".format(env.unwrapped.traj_info["p0"]))
     print("init rot deviation: {}".format(env.unwrapped.traj_info["r0"]))
-    env.controller.start_record()
+    # env.controller.start_record()
     while not done:
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
         # action = agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
-        action = agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        action = agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
         action = action.action
         a = np.array(action)
         print(env.unwrapped.primitive_list[a])
@@ -231,7 +231,7 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
         else:
             status = "fail"
         print("T: {}, status: {}".format(info["mp_time"], status))
-    env.controller.stop_record("test.npy")
+    # env.controller.stop_record("test.npy")
 
     return seq, strat, info["success"], info["eps_time"], info["insert_depth"], episode_rew
 

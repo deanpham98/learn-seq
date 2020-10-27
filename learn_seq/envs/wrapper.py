@@ -139,11 +139,11 @@ class FixedInitialPoseWrapper(BaseInsertionWrapper):
     def _sample_init_pose(self):
         pos_dir = np.zeros(3)
         pos_dir[:3] = (np.random.random(3) - 0.5) *2
-        pos_dir[:3] = pos_dir[:3] / np.linalg.norm(pos_dir)
+        pos_dir[:3] = pos_dir[:3] / np.max(np.abs(pos_dir))
         p0 = self.initial_pos_mean + pos_dir*self.dp
 
         rot_dir = (np.random.random(3) - 0.5) * 2
-        rot_dir = rot_dir / np.linalg.norm(rot_dir)
+        rot_dir = rot_dir / np.max(np.abs(rot_dir))
         hole_rot_rel =  rot_dir*self.dr
         q0 = integrate_quat(self.target_quat, hole_rot_rel, 1)
         return p0, q0

@@ -2,30 +2,13 @@ from copy import deepcopy
 import numpy as np
 from torch.nn import ReLU
 from rlpyt.algos.pg.ppo import PPO
-from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
-from learn_seq.envs.wrapper import StructuredActionSpaceWrapper, FixedHolePoseErrorWrapper
-from learn_seq.rlpyt.ppo_agent import PPOStructuredRealAgent
-from learn_seq.utils.mujoco import mat2quat, mul_quat
+from learn_seq.envs.wrapper import StructuredActionSpaceWrapper
+from learn_seq.rlpyt.ppo_agent import PPOStructuredInsertionAgent
+from learn_seq.controller.hybrid import StateRecordHybridController
 
-# peg transformation matrix
-T_HOLE = np.array([0.998207,0.0595135,-0.00458621,0,0.0594896,-0.998206,-0.00517501,0,-0.00488606,0.00489299,-0.999976, 0,\
-                   0.530483,0.0755677,0.152598,1]).reshape((4, 4)).T
-# square with ft sensor
-# T_HOLE = np.array([0.98067,-0.195499,-0.00688242,0,-0.195471,-0.980689,0.00447463,0,-0.00762445,-0.00304288,-0.999966, 0,\
-#                    0.528091,-0.122304,0.143079,1]).reshape((4, 4)).T
-# trianlge with ft sensor
-# T_HOLE = np.array([0.998326,0.0552086,-0.0166446,0,0.0550535,-0.998427,-0.00963753,0,-0.0171508,0.00870523,-0.999815, 0,\
-#                    0.534665,-0.0616273,0.142589,1]).reshape((4, 4)).T
-
-hole_pos = T_HOLE[:3, 3]
-hole_rot = T_HOLE[:3, :3]
-hole_quat = mat2quat(hole_rot)
-# make the z axis point out of the hole
-qx = np.array([np.cos(np.pi/2), np.sin(np.pi/2), 0, 0])
-hole_quat = mul_quat(hole_quat, qx)
-
-#
+#----- primitive params
+NO_QUANTIZATION = 2
 SPEED_FACTOR_RANGE = [0.01, 0.02]
 SLIDING_SPEED_FACTOR_RANGE = [0.008, 0.015]
 # FORCE_THRESH_RANGE = [15, 25]
@@ -35,22 +18,19 @@ FORCE_THRESH_RANGE = [8, 15]
 TORQUE_THRESH_RANGE = [0.1, 0.5]
 TRANSLATION_DISPLACEMENT_RANGE = [0.001, 0.005]
 ROTATION_DISPLACEMENT_RANGE = [np.pi/180, 5*np.pi/180]
-INSERTION_FORCE_RANGE = [5., 12]
+INSERTION_FORCE_RANGE = [10., 20]
 KD_ADMITTANCE_ROT_RANGE = [0.01, 0.15]
 ROTATION_TO_TRANSLATION_FACTOR = 8
 SAFETY_FORCE = 15.
-SAFETY_TORQUE = 1.
+SAFETY_TORQUE = 2.
 # controller gains
-KP_DEFAULT = [2500.] + [1500]*2 + [60.]*2 + [30.]
+KP_DEFAULT = [1000.]*3 + [60.]*2 + [40.]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
 TIMEOUT = 2.
 
-# no discretization
-NO_QUANTIZATION = 2
-
 # TODO change in environment
 HOLE_DEPTH = 0.02
-GOAL_THRESH = 3e-3
+GOAL_THRESH = 2e-3
 TRAINING_STEP = 1000000
 SEED = 18
 
@@ -75,7 +55,7 @@ for i in range(NO_QUANTIZATION):
 
 # displacement free space
 vd = 0.01
-for i in range(3):
+for i in range(3):  # x, y, z translation
     move_dir = np.zeros(6)
     for j in range(NO_QUANTIZATION):
         dp = (TRANSLATION_DISPLACEMENT_RANGE[1] - TRANSLATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
@@ -94,7 +74,7 @@ for i in range(3):
         primitive_list.append(("displacement", deepcopy(param)))
 
 
-for i in range(3):
+for i in range(3):  # x, y, z rotation
     move_dir = np.zeros(6)
     for j in range(NO_QUANTIZATION):
         dp = (ROTATION_DISPLACEMENT_RANGE[1] - ROTATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
@@ -117,7 +97,7 @@ no_free_actions = len(primitive_list)
 free_action_idx = list(range(no_free_actions))  # [0, 1, ... N-1]
 
 # slide/rotate until contact
-for i in range(2):
+for i in range(2):  # x, y translation
     move_dir = np.zeros(6)
     for j in range(NO_QUANTIZATION):
         for k in range(NO_QUANTIZATION):
@@ -138,7 +118,7 @@ for i in range(2):
             param["u"][i] = -1
             primitive_list.append(("move2contact", deepcopy(param)))
 
-for i in range(3):
+for i in range(3):  # x, y, z rotation
     move_dir = np.zeros(6)
     for j in range(NO_QUANTIZATION):
         for k in range(NO_QUANTIZATION):
@@ -161,7 +141,7 @@ for i in range(3):
 
 # displacement on plane
 vd = 0.01
-for i in range(2):
+for i in range(2):  # x, y tranlation
     move_dir = np.zeros(6)
     for j in range(NO_QUANTIZATION):
         dp = (TRANSLATION_DISPLACEMENT_RANGE[1] - TRANSLATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
@@ -179,7 +159,7 @@ for i in range(2):
         param["u"][i] = -1
         primitive_list.append(("displacement", deepcopy(param)))
 
-for i in range(3):
+for i in range(3):  # x, y, z rotation
     move_dir = np.zeros(6)
     for j in range(NO_QUANTIZATION):
         dp = (ROTATION_DISPLACEMENT_RANGE[1] - ROTATION_DISPLACEMENT_RANGE[0])/NO_QUANTIZATION
@@ -208,7 +188,7 @@ for j in range(NO_QUANTIZATION):
         df = (INSERTION_FORCE_RANGE[1] - INSERTION_FORCE_RANGE[0]) / NO_QUANTIZATION
         f = INSERTION_FORCE_RANGE[0] + df/2 + k*df
 
-        param = dict(kd_adt=np.array([0.01]*3 + [kd]*3),
+        param = dict(kd_adt=np.array([0.]*3 + [kd]*3),
                      ft=np.array([0, 0, -f, 0, 0, 0]),
                      pt=np.array([0, 0, -HOLE_DEPTH]),
                      goal_thresh=GOAL_THRESH,
@@ -224,30 +204,24 @@ sub_spaces = [free_action_idx, contact_action_idx]
 
 # ----- train config
 env_config = {
-    "id": "learn_seq:RealInsertionEnv-v0",
+    "id": "learn_seq:MujocoInsertionEnv-v0",
     "primitive_list": primitive_list,
-    "hole_pos": hole_pos,
-    "hole_quat": hole_quat,
-    "hole_depth": HOLE_DEPTH,
     "peg_pos_range": ([-0.2]*3, [0.2]*3),
     "peg_rot_range": ([-1]*3, [1]*3),
     "initial_pos_range": ([-0.001]*2+ [-0.001], [0.001]*2+ [0.001]),
     "initial_rot_range": ([-1*np.pi/180]*3, [1*np.pi/180]*3),
     "goal_thresh": GOAL_THRESH,
-    # "wrapper": StructuredActionSpaceWrapper,
-
-    "wrapper": FixedHolePoseErrorWrapper,
+    "controller_class": StateRecordHybridController,
+    "wrapper": StructuredActionSpaceWrapper,
     "wrapper_kwargs": {
-        # "hole_pos_error_range": ([-1./1000]*2+ [0.], [1./1000]*2+ [0.]),
-        # "hole_rot_error_range": ([-np.pi/180]*3, [np.pi/180]*3),
-        "hole_pos_error": 1./1000,
-        "hole_rot_error": np.pi/180,
+        "hole_pos_error_range": ([-1./1000]*2+ [0.], [1./1000]*2+ [0.]),
+        "hole_rot_error_range": ([-np.pi/180]*3, [np.pi/180]*3),
         "spaces_idx_list": sub_spaces
     }
 }
 
 agent_config = {
-    "agent_class": PPOStructuredRealAgent,
+    "agent_class": PPOStructuredInsertionAgent,
     "model_kwargs": {
         "hidden_sizes": None,
         # "hidden_nonlinearity": ReLU,
@@ -255,11 +229,11 @@ agent_config = {
 }
 
 sampler_config = {
-    "sampler_class": SerialSampler,
+    "sampler_class": CpuSampler,
     "sampler_kwargs":{
         "batch_T": 128, # no samples per iteration
-        "batch_B": 1, # no environments, this will be divided equally to no. parallel envs
-        "max_decorrelation_steps": 1
+        "batch_B": 16, # no environments, this will be divided equally to no. parallel envs
+        "max_decorrelation_steps": 10
     }
 }
 
@@ -267,7 +241,7 @@ algo_config = {
     "algo_class": PPO,
     "algo_kwargs":{
         "discount": 0.99,
-        "minibatches": 8,
+        "minibatches": 32,
         "epochs": 10,
         "learning_rate": 1e-3,
         "normalize_advantage": False
@@ -275,10 +249,10 @@ algo_config = {
 }
 
 runner_config = {
-    "n_parallel": 1,  # use parallel workers to step environment
+    "n_parallel": 4,  # number of CPU cores used for paralellism
     "runner_kwargs": {
         "n_steps": TRAINING_STEP,
         "seed": SEED,
-        "log_interval_steps": 128,
+        "log_interval_steps": 2048,
     }
 }
