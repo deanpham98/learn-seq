@@ -9,19 +9,19 @@ from learn_seq.utils.mujoco import mat2quat, mul_quat, integrate_quat
 N = 10
 
 # peg transformation matrix
-# T_HOLE = np.array([0.973253,0.228719,-0.0211343,0,0.228779,-0.973468,0.000469316,0,-0.0204666,-0.00529194,-0.999777, 0,\
-#                    0.531149,0.0750407,0.152897,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.998207,0.0595135,-0.00458621,0,0.0594896,-0.998206,-0.00517501,0,-0.00488606,0.00489299,-0.999976, 0,\
+#                    0.530483,0.0755677,0.152598,1]).reshape((4, 4)).T
 # square hole
-# T_HOLE = np.array([0.998274,0.0577803,0.00952637,0,0.0575972,-0.998159,0.0184873,0,0.0105772,-0.0179071,-0.999784, 0,\
-#                    0.529274,-0.122375,0.142785,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.997874,-0.0643417,-0.00936179,0,-0.0643266,-0.997917,0.0019045,0,-0.00946502,-0.00129826,-0.999954, 0,\
+#                    0.528331,-0.122101,0.142952,1]).reshape((4, 4)).T
 # triangle hole
-T_HOLE = np.array([0.996274,0.0852166,-0.0125563,0,0.0852256,-0.996352,0.000177037,0,-0.0124957,-0.00124652,-0.999921, 0,\
-                   0.534215,-0.0624717,0.14331,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.999711,-0.0170507,0.0163608,0,-0.0167906,-0.999723,-0.0159042,0,0.0166277,0.0156252,-0.99974, 0,\
+                   0.534439,-0.0618864,0.143541,1]).reshape((4, 4)).T
 
 SHAPE="round"
 
 HOLE_DEPTH = 0.02
-GOAL_THRESH = 4e-3
+GOAL_THRESH = 2e-3
 # stiffness
 KP = np.array([2500, 1500, 1500] + [60, 60, 30])
 KD = 2*np.sqrt(KP)
@@ -361,8 +361,8 @@ def exp_config():
     config = []
     c1 = dict(
         no_run=10,
-        hole_pos_error=1./1000,
-        hole_rot_error=np.pi/180,
+        hole_pos_error=0.5/1000,
+        hole_rot_error=0.5*np.pi/180,
         delta_init_pos=0.,
         delta_init_rot=0.
     )
@@ -370,8 +370,8 @@ def exp_config():
 
     c2 = dict(
         no_run=10,
-        hole_pos_error=2./1000,
-        hole_rot_error=2*np.pi/180,
+        hole_pos_error=1.5/1000,
+        hole_rot_error=1.5*np.pi/180,
         delta_init_pos=0.,
         delta_init_rot=0.
     )
@@ -379,11 +379,10 @@ def exp_config():
 
     c3 = dict(
         no_run=10,
-        hole_pos_error=1./1000,
-        hole_rot_error=np.pi/180,
+        hole_pos_error=0.5/1000,
+        hole_rot_error=0.5*np.pi/180,
         delta_init_pos=1./1000,
-        delta_init_rot=np.pi/180
-    )
+        delta_init_rot=1.*np.pi/180    )
     config.append(c3)
     return config
 

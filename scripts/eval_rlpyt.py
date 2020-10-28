@@ -72,16 +72,16 @@ def eval_envs(config):
     # envs.append(gym_make(**env_config))
 
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = 1./1000,
-        hole_rot_error = 1.*np.pi/180,
+        hole_pos_error = 0.5/1000,
+        hole_rot_error = 0.5*np.pi/180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
-    envs.append(gym_make(**env_config))
+    # envs.append(gym_make(**env_config))
 
     # test generalization: fixed init position, 2mm hole pose error
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = 0.002,
-        hole_rot_error = 2*np.pi/180,
+        hole_pos_error = 0.0015,
+        hole_rot_error = 1.5*np.pi/180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
     envs.append(gym_make(**env_config))
@@ -96,8 +96,8 @@ def eval_envs(config):
     env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
 
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = 1./1000,
-        hole_rot_error = 1.*np.pi/180,
+        hole_pos_error = 0.5/1000,
+        hole_rot_error = 0.5*np.pi/180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
 
@@ -185,8 +185,8 @@ def real_seq_eval_envs(config):
 
     wrapper = InitialPoseWrapper
     wrapper_kwargs = dict(
-        p0 = np.zeros(3),
-        r0 = np.zeros(3)
+        p0 = np.array([0, 0.004, 0.01]),
+        r0 = np.array([3*np.pi/180, 3*np.pi/180, 0])
     )
     env_config = append_wrapper(env_config,
             wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
@@ -215,7 +215,7 @@ def run_agent_single(agent, env, p=None, q=None, render=False):
         pa = torch.tensor(np.zeros(6))
         pr = torch.tensor(0.)
         # action = agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
-        action = agent.eval_step(torch.tensor(obs, dtype=torch.float32), pa, pr)
+        action = agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
         action = action.action
         a = np.array(action)
         print(env.unwrapped.primitive_list[a])
@@ -289,6 +289,7 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         # else:
         #     eval_env_list = eval_envs(config)
         eval_env_list = eval_envs(config)
+        # eval_env_list = real_seq_eval_envs(config)
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:
             run_agent(agent, env, eps=eval_eps, render=render)
