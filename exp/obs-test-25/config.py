@@ -222,20 +222,20 @@ wrapper_kwargs = [
     "hole_body_quat": hole_quat
 },
 {
-    "hole_pos_error_range": ([-0./1000]*2+ [-0./1000], [0./1000]*2+ [0./1000]),
-    "hole_rot_error_range": ([-0*np.pi/180]*3, [0*np.pi/180]*3),
+    "hole_pos_error_range": ([-1./1000]*2+ [-1./1000], [1./1000]*2+ [1./1000]),
+    "hole_rot_error_range": ([-1*np.pi/180]*3, [1*np.pi/180]*3),
     "spaces_idx_list": sub_spaces
-}, {}, {}, {},]
+},  {}, {},]
 
 env_config = {
     "id": "learn_seq:MujocoInsertionEnv-v0",
     "primitive_list": primitive_list,
     "peg_pos_range": ([-0.2]*3, [0.2]*3),
     "peg_rot_range": ([-1]*3, [1]*3),
-    "initial_pos_range": ([-0.001]*2+ [-0.001], [0.001]*2+ [0.001]),
-    "initial_rot_range": ([-1*np.pi/180]*3, [1*np.pi/180]*3),
+    "initial_pos_range": ([-0.002]*2+ [-0.002], [0.002]*2+ [0.002]),
+    "initial_rot_range": ([-2*np.pi/180]*3, [2*np.pi/180]*3),
     "goal_thresh": GOAL_THRESH,
-    "wrapper": [HolePoseWrapper, StructuredActionSpaceWrapper, ControllerCommandWrapper, TaskFrameWrapper, PrimitiveStateWrapper],
+    "wrapper": [HolePoseWrapper, StructuredActionSpaceWrapper, ControllerCommandWrapper, PrimitiveStateWrapper],
     "wrapper_kwargs": wrapper_kwargs
 }
 
