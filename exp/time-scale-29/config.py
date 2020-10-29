@@ -230,7 +230,7 @@ agent_config = {
 sampler_config = {
     "sampler_class": CpuSampler,
     "sampler_kwargs":{
-        "batch_T": 128, # no samples per iteration
+        "batch_T": 256, # no samples per iteration
         "batch_B": 16, # no environments, this will be divided equally to no. parallel envs
         "max_decorrelation_steps": 10
     }
