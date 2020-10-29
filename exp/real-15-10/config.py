@@ -12,11 +12,11 @@ from learn_seq.utils.mujoco import mat2quat, mul_quat
 # T_HOLE = np.array([0.998207,0.0595135,-0.00458621,0,0.0594896,-0.998206,-0.00517501,0,-0.00488606,0.00489299,-0.999976, 0,\
 #                    0.530483,0.0755677,0.152598,1]).reshape((4, 4)).T
 # square with ft sensor
-# T_HOLE = np.array([0.997874,-0.0643417,-0.00936179,0,-0.0643266,-0.997917,0.0019045,0,-0.00946502,-0.00129826,-0.999954, 0,\
-#                    0.528331,-0.122101,0.142952,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.999593,0.0198689,0.0200037,0,0.0203969,-0.99943,-0.0265458,0,0.0194652,0.0269436,-0.999447, 0,\
+                   0.528679,-0.122349,0.142732,1]).reshape((4, 4)).T
 # trianlge with ft sensor
-T_HOLE = np.array([0.999711,-0.0170507,0.0163608,0,-0.0167906,-0.999723,-0.0159042,0,0.0166277,0.0156252,-0.99974, 0,\
-                   0.534439,-0.0618864,0.143541,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.997746,0.0651894,-0.0153274,0,0.0649761,-0.997779,-0.0140256,0,-0.016208,0.0129983,-0.999784, 0,\
+#                    0.534575,-0.0619296,0.143318,1]).reshape((4, 4)).T
 
 hole_pos = T_HOLE[:3, 3]
 hole_rot = T_HOLE[:3, :3]
@@ -231,8 +231,8 @@ env_config = {
     "hole_depth": HOLE_DEPTH,
     "peg_pos_range": ([-0.2]*3, [0.2]*3),
     "peg_rot_range": ([-1]*3, [1]*3),
-    "initial_pos_range": ([-0.001]*2+ [-0.001], [0.001]*2+ [0.001]),
-    "initial_rot_range": ([-1*np.pi/180]*3, [1*np.pi/180]*3),
+    "initial_pos_range": ([-0.0]*2+ [-0.0], [0.0]*2+ [0.0]),
+    "initial_rot_range": ([-0.*np.pi/180]*3, [0.*np.pi/180]*3),
     "goal_thresh": GOAL_THRESH,
     # "wrapper": StructuredActionSpaceWrapper,
 
@@ -240,8 +240,8 @@ env_config = {
     "wrapper_kwargs": {
         # "hole_pos_error_range": ([-1./1000]*2+ [0.], [1./1000]*2+ [0.]),
         # "hole_rot_error_range": ([-np.pi/180]*3, [np.pi/180]*3),
-        "hole_pos_error": 1./1000,
-        "hole_rot_error": np.pi/180,
+        "hole_pos_error": 0.5/1000,
+        "hole_rot_error": 0.5*np.pi/180,
         "spaces_idx_list": sub_spaces
     }
 }
@@ -280,5 +280,6 @@ runner_config = {
         "n_steps": TRAINING_STEP,
         "seed": SEED,
         "log_interval_steps": 128,
+        "log_traj_window": 20
     }
 }
