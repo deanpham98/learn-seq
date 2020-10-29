@@ -156,7 +156,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
 
         rwd_terminal = 0
         if self._is_success(pos):
-            rwd_terminal = 5.
+            rwd_terminal = 20.
 
         r = rwd_goal+rwd_short_length +rwd_terminal
         return r
