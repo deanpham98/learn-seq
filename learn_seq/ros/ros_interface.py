@@ -31,6 +31,7 @@ class FrankaRosInterface:
             "qd": None,
             "f": None,
             "fd": None,
+            "pcmd": None,
             "mode": None}
 
         # state subscriber (read pose)
@@ -70,6 +71,7 @@ class FrankaRosInterface:
         self._state["pd"] = np.array(msg.pd)
         self._state["q"] = np.array(msg.q)
         self._state["qd"] = np.array(msg.qd)
+        self._state["pcmd"] = np.array(msg.p_cmd)
         if self._record:
             self._record_data["p"].append([msg.time, msg.p])
             self._record_data["pd"].append([msg.time, msg.pd])
@@ -323,3 +325,6 @@ class FrankaRosInterface:
 
     def get_ros_time(self):
         return self._state["t"]
+
+    def get_pose_control_cmd(self):
+        return self._state["pcmd"], self._state["qd"]

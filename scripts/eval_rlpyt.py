@@ -60,9 +60,12 @@ def eval_envs(config):
     envs = []
     # test normal: fixed initial position, 1mm hole pose error
     env_config = deepcopy(config.env_config)
+    if not isinstance(env_config["wrapper"], list):
+        env_config["wrapper"] = [env_config["wrapper"], ]
+        env_config["wrapper_kwargs"] = [env_config["wrapper_kwargs"], ]
     env_config["initial_pos_range"] = ([0.]*3, [0.]*3)
     env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-    env_config["wrapper"] = FixedHolePoseErrorWrapper
+    env_config["wrapper"][0] = FixedHolePoseErrorWrapper
     # env_config["wrapper_kwargs"] = dict(
     #     hole_pos_error = 0.0,
     #     hole_rot_error = 0*np.pi / 180,
@@ -71,18 +74,18 @@ def eval_envs(config):
 
     # envs.append(gym_make(**env_config))
 
-    env_config["wrapper_kwargs"] = dict(
+    env_config["wrapper_kwargs"][0] = dict(
         hole_pos_error = 0.5/1000,
         hole_rot_error = 0.5*np.pi/180,
-        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+        spaces_idx_list = env_config["wrapper_kwargs"][0]["spaces_idx_list"]
     )
     envs.append(gym_make(**env_config))
 
     # test generalization: fixed init position, 2mm hole pose error
-    env_config["wrapper_kwargs"] = dict(
+    env_config["wrapper_kwargs"][0] = dict(
         hole_pos_error = 0.0015,
         hole_rot_error = 1.5*np.pi/180,
-        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+        spaces_idx_list = env_config["wrapper_kwargs"][0]["spaces_idx_list"]
     )
     envs.append(gym_make(**env_config))
 
@@ -95,10 +98,10 @@ def eval_envs(config):
     env_config["initial_pos_range"] = ([-0.001]*3, [0.001]*3)
     env_config["initial_rot_range"] = ([-np.pi/180]*3, [np.pi/180]*3)
 
-    env_config["wrapper_kwargs"] = dict(
+    env_config["wrapper_kwargs"][0] = dict(
         hole_pos_error = 0.5/1000,
         hole_rot_error = 0.5*np.pi/180,
-        spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
+        spaces_idx_list = env_config["wrapper_kwargs"][0]["spaces_idx_list"]
     )
 
     wrapper = FixedInitialPoseWrapper

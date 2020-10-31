@@ -129,14 +129,14 @@ class PPOStructuredRealModel(PPOStructuredInsertionModel):
         pi = torch.zeros((obs_flat.shape[0], self.n), dtype=obs_flat.dtype, device=obs_flat.device)
 
         for i in range(obs_flat.shape[0]):
-            if (np.abs(obs_flat[i, 6:9])<=2).all():
-                p = F.softmax(self.pi_free(obs_flat[i, :6]), dim=-1)
+            if (np.abs(obs_flat[i, self.input_size:self.input_size+3])<=2).all():
+                p = F.softmax(self.pi_free(obs_flat[i, :self.input_size]), dim=-1)
                 pi[i, self.sub_indices[0]] = p
             else:
-                p = F.softmax(self.pi_con(obs_flat[i, :6]), dim=-1)
+                p = F.softmax(self.pi_con(obs_flat[i, :self.input_size]), dim=-1)
                 pi[i, self.sub_indices[1]] = p
 
-        v = self.v(obs_flat[:, :6]).squeeze(-1)
+        v = self.v(obs_flat[:, :self.input_size]).squeeze(-1)
         # Restore leading dimensions: [T,B], [B], or [], as input.
         pi, v = restore_leading_dims((pi, v), lead_dim, T, B)
 

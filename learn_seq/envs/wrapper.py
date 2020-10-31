@@ -244,6 +244,40 @@ class ControllerCommandWrapper(BaseInsertionWrapper):
         new_obs = np.hstack([obs[:self.obs_size], pose_norm, obs[self.obs_size:]])
         return new_obs, reward, done, info
 
+class RealControllerCommandWrapper(BaseInsertionWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.obs_size = self.observation_space.shape[0]
+        obs_low_lim = self.observation_space.low
+        obs_high_lim = self.observation_space.high
+        obs_low_lim = np.hstack([obs_low_lim, obs_low_lim[:6]])
+        obs_high_lim = np.hstack([obs_high_lim, obs_high_lim[:6]])
+        self.observation_space = gym.spaces.Box(obs_low_lim, obs_high_lim)
+
+    def reset(self):
+        obs = self.env.reset()
+        tf_pos, tf_quat = self.get_task_frame()
+        inv_tf_pos, inv_tf_quat = inverse_frame(tf_pos, tf_quat)
+        p_cmd, q_cmd = self.env.ros_interface.get_pose_control_cmd()
+        p_cmd, q_cmd = pose_transform(p_cmd, q_cmd, inv_tf_pos, inv_tf_quat)
+        r_cmd = quat2vec(q_cmd, self.env.unwrapped.r_prev)
+        pose_norm = self.env.unwrapped._normalize_obs(np.hstack([p_cmd, r_cmd]))
+        new_obs = np.hstack([obs[:self.obs_size], pose_norm, obs[self.obs_size:]])
+        return new_obs
+
+    def step(self, action, **kwargs):
+        obs, reward, done, info = self.env.step(action, **kwargs)
+        tf_pos, tf_quat = self.get_task_frame()
+        inv_tf_pos, inv_tf_quat = inverse_frame(tf_pos, tf_quat)
+        p_cmd, q_cmd = self.env.ros_interface.get_pose_control_cmd()
+        # print(p_cmd)x
+        p_cmd, q_cmd = pose_transform(p_cmd, q_cmd, inv_tf_pos, inv_tf_quat)
+        r_cmd = quat2vec(q_cmd, self.env.unwrapped.r_prev)
+        pose_norm = self.env.unwrapped._normalize_obs(np.hstack([p_cmd, r_cmd]))
+        new_obs = np.hstack([obs[:self.obs_size], pose_norm, obs[self.obs_size:]])
+        return new_obs, reward, done, info
+
+
 class TaskFrameWrapper(BaseInsertionWrapper):
     def __init__(self, env):
         super().__init__(env)
