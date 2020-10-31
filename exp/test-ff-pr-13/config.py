@@ -30,7 +30,7 @@ TIMEOUT = 2.
 
 # TODO change in environment
 HOLE_DEPTH = 0.02
-GOAL_THRESH = 3e-3
+GOAL_THRESH = 2e-3
 TRAINING_STEP = 1000000
 SEED = 18
 
@@ -211,7 +211,6 @@ env_config = {
     "initial_pos_range": ([-0.002]*2+ [-0.002], [0.002]*2+ [0.002]),
     "initial_rot_range": ([-2*np.pi/180]*3, [2*np.pi/180]*3),
     "goal_thresh": GOAL_THRESH,
-    "controller_class": StateRecordHybridController,
     "wrapper": StructuredActionSpaceWrapper,
     "wrapper_kwargs": {
         "hole_pos_error_range": ([-1./1000]*2+ [-1./1000], [1./1000]*2+ [1./1000]),

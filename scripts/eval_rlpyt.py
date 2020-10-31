@@ -274,7 +274,7 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
             if "round" in run_id:
                 config.env_config["xml_model_name"] = "round_pih.xml"
             if "square" in run_id:
-                config.env_config["xml_model_name"] = "square_pih.xml"
+                config.env_config["xml_model_name"] = "square_pih2.xml"
             if "triangle" in run_id:
                 config.env_config["xml_model_name"] = "triangle_pih.xml"
 
@@ -288,8 +288,8 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         #     eval_env_list = real_eval_envs(config)
         # else:
         #     eval_env_list = eval_envs(config)
-        # eval_env_list = eval_envs(config)
-        eval_env_list = real_seq_eval_envs(config)
+        eval_env_list = eval_envs(config)
+        # eval_env_list = real_seq_eval_envs(config)
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:
             run_agent(agent, env, eps=eval_eps, render=render)
