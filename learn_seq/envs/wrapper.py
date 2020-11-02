@@ -181,7 +181,7 @@ class ControllerCommandWrapper(BaseInsertionWrapper):
         obs = self.env.reset()
         tf_pos, tf_quat = self.get_task_frame()
         inv_tf_pos, inv_tf_quat = inverse_frame(tf_pos, tf_quat)
-        p_cmd, q_cmd = self.env.controller.get_pose_control_cmd()
+        p_cmd, q_cmd = self.env.controller.get_pose_cmd()
         p_cmd, q_cmd = pose_transform(p_cmd, q_cmd, inv_tf_pos, inv_tf_quat)
         r_cmd = quat2vec(q_cmd, self.env.unwrapped.r_prev)
         pose_norm = self.env.unwrapped._normalize_obs(np.hstack([p_cmd, r_cmd]))
