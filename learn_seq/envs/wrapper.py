@@ -17,6 +17,9 @@ class BaseInsertionWrapper(Wrapper):
     def set_task_frame(self, *argv, **kwargs):
         return self.env.set_task_frame(*argv, **kwargs)
 
+    def step(self, *argv, **kwargs):
+        return self.env.step(*argv, **kwargs)
+
 class TrainInsertionWrapper(BaseInsertionWrapper):
     """Vary the hole position virtually, and assume the `hole_pos` and
     `hole_quat` attribute of environment is the true hole pose.
@@ -157,7 +160,7 @@ class FixedHolePoseErrorWrapper(StructuredActionSpaceWrapper):
         # add noise to create virtual estimated hole pose
         pos_dir = np.zeros(3)
         pos_dir[:2] = (np.random.random(2) - 0.5) * 2
-        pos_dir[:2] = pos_dir[:2] / np.linalg.norm(pos_dir)
+        pos_dir[:2] = pos_dir[:2] / np.max(np.abs(pos_dir))
         hole_pos = self.hole_pos + self.pos_error * pos_dir
 
         rot_dir = (np.random.random(3) - 0.5) * 2

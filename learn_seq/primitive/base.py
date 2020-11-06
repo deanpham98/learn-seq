@@ -56,6 +56,10 @@ class Primitive(object):
 
             if viewer is not None:
                 viewer.render()
+                # print(viewer.cam.distance)
+                # print(viewer.cam.lookat)
+                # print(viewer.cam.elevation)
+                # print(viewer.cam.azimuth)
         if status is PrimitiveStatus.FAIL:
             rew = -2
         else:
