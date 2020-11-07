@@ -134,8 +134,8 @@ def eval_envs(config):
 def real_eval_envs(config):
     # p0 = np.array([0, 0.001, 0.01])
     # r0 = np.array([1*np.pi/180, 0, 0])
-    p0 = np.array([0, 0.0, 0.01])
-    r0 = np.array([0*np.pi/180, 0, 0])
+    p0 = np.array([0.001, 0.001, 0.01])
+    r0 = np.array([-0*np.pi/180, 0*np.pi/180, -0*np.pi/180])
     envs = []
     # # no hole pose error, fixed initial state
     # env_config = deepcopy(config.env_config)
@@ -157,8 +157,8 @@ def real_eval_envs(config):
     env_config = deepcopy(config.env_config)
     env_config["wrapper"] = FixedHolePoseErrorWrapper
     env_config["wrapper_kwargs"] = dict(
-        hole_pos_error = 0.001,
-        hole_rot_error = 1*np.pi / 180,
+        hole_pos_error = 0.000,
+        hole_rot_error = 0*np.pi / 180,
         spaces_idx_list = env_config["wrapper_kwargs"]["spaces_idx_list"]
     )
 
@@ -169,10 +169,10 @@ def real_eval_envs(config):
     )
     env_config = append_wrapper(env_config,
             wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
-    # env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
-    # env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-    env_config["initial_pos_range"] = ([-0.002]*2+ [-0.], [0.002]*2+ [0.0])
-    env_config["initial_rot_range"] = ([-2*np.pi/180]*3, [2*np.pi/180]*3)
+    env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
+    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
+    # env_config["initial_pos_range"] = ([-0.002]*2+ [-0.], [0.002]*2+ [0.0])
+    # env_config["initial_rot_range"] = ([-2*np.pi/180]*3, [2*np.pi/180]*3)
     envs.append(gym_make(**env_config))
     return envs
 
@@ -292,7 +292,7 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         # else:
         #     eval_env_list = eval_envs(config)
         eval_env_list = eval_envs(config)
-        # eval_env_list = real_seq_eval_envs(config)
+        # eval_env_list = real_eval_envs(config)
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:
             run_agent(agent, env, eps=eval_eps, render=render)
@@ -359,6 +359,8 @@ def evaluate_sequence(run_path_list, config, render=False):
 
 if __name__ == '__main__':
     import argparse
+
+    # torch.random.seed()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp-name", "-n", type=str, required=True)
