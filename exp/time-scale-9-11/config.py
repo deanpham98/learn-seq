@@ -12,11 +12,11 @@ from learn_seq.utils.mujoco import mat2quat, mul_quat
 # T_HOLE = np.array([0.998207,0.0595135,-0.00458621,0,0.0594896,-0.998206,-0.00517501,0,-0.00488606,0.00489299,-0.999976, 0,\
 #                    0.530483,0.0755677,0.152598,1]).reshape((4, 4)).T
 # square with ft sensor
-# T_HOLE = np.array([0.998819,0.0406243,-0.0262772,0,0.0411661,-0.998934,0.0204161,0,-0.0254203,-0.0214742,-0.999446, 0,\
-#                    0.52905,-0.146041,0.14249,1]).reshape((4, 4)).T
+T_HOLE = np.array([0.994307,0.104997,-0.017614,0,0.104882,-0.994448,-0.00732772,0,-0.0182859,0.00543872,-0.999818, 0,\
+                   0.529463,-0.145664,0.142668,1]).reshape((4, 4)).T
 # trianlge with ft sensor
-T_HOLE = np.array([0.999517,-0.0278058,-0.0131494,0,-0.0276829,-0.999563,0.00943894,0,-0.0134064,-0.00907054,-0.999869, 0,\
-                   0.534468,-0.0857928,0.142331,1]).reshape((4, 4)).T
+# T_HOLE = np.array([0.999517,-0.0278058,-0.0131494,0,-0.0276829,-0.999563,0.00943894,0,-0.0134064,-0.00907054,-0.999869, 0,\
+#                    0.534468,-0.0857928,0.142331,1]).reshape((4, 4)).T
 
 hole_pos = T_HOLE[:3, 3]
 hole_rot = T_HOLE[:3, :3]
@@ -26,6 +26,7 @@ qx = np.array([np.cos(np.pi/2), np.sin(np.pi/2), 0, 0])
 hole_quat = mul_quat(hole_quat, qx)
 
 #
+TIME_SCALE = 0.5
 SPEED_FACTOR_RANGE = [0.01, 0.02]
 SLIDING_SPEED_FACTOR_RANGE = [0.008, 0.015]
 # FORCE_THRESH_RANGE = [15, 25]
@@ -33,24 +34,25 @@ SLIDING_SPEED_FACTOR_RANGE = [0.008, 0.015]
 # with ft filter
 FORCE_THRESH_RANGE = [8, 15]
 TORQUE_THRESH_RANGE = [0.1, 0.5]
-TRANSLATION_DISPLACEMENT_RANGE = [0.001, 0.005]
-ROTATION_DISPLACEMENT_RANGE = [np.pi/180, 5*np.pi/180]
+TRANSLATION_DISPLACEMENT_RANGE = [0.001*TIME_SCALE, 0.005*TIME_SCALE]
+ROTATION_DISPLACEMENT_RANGE = [np.pi/180*TIME_SCALE, 5*np.pi/180*TIME_SCALE]
 INSERTION_FORCE_RANGE = [5., 12]
 KD_ADMITTANCE_ROT_RANGE = [0.01, 0.15]
 ROTATION_TO_TRANSLATION_FACTOR = 8
 SAFETY_FORCE = 15.
 SAFETY_TORQUE = 1.
 # controller gains
-KP_DEFAULT = [2500.] + [1500]*2 + [60.]*2 + [30.]
+# KP_DEFAULT = [2500.] + [1500]*2 + [60.]*2 + [30.]
+KP_DEFAULT = [1000.] + [1000]*2 + [60.]*2 + [30.]
 KD_DEFAULT = [2*np.sqrt(i) for i in KP_DEFAULT]
-TIMEOUT = 2.
+TIMEOUT = 2.*TIME_SCALE
 
 # no discretization
 NO_QUANTIZATION = 2
 
 # TODO change in environment
 HOLE_DEPTH = 0.02
-GOAL_THRESH = 3e-3
+GOAL_THRESH = 2e-3
 TRAINING_STEP = 1000000
 SEED = 18
 
