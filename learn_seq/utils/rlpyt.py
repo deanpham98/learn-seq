@@ -11,14 +11,9 @@ class CustomTrajInfo(TrajInfo):
         self.Success = 0.
         self.InsertDepth = 0.
         self.Time = 0.
-        self.InitPos = np.zeros(3)
-        self.InitQuat = np.zeros(4)
 
     def step(self, observation, action, reward, done, agent_info, env_info):
         super().step(observation, action, reward, done, agent_info, env_info)
-        if getattr(env_info, "eps_time") == 0:
-            self.InitPos = getattr(env_info, "init_pos")
-            self.InitQuat = getattr(env_info, "init_quat")
         if done:
             self.Success = getattr(env_info, "success")
             self.InsertDepth = getattr(env_info, "insert_depth")

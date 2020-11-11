@@ -21,7 +21,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
                  peg_rot_range,
                  initial_pos_range,
                  initial_rot_range,
-                 depth_thresh=0.95,
+                 goal_thresh=1e-3,
                  controller_class=HybridController,
                  **controller_kwargs
                  ):
@@ -30,7 +30,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         model_path = os.path.join(mujoco_path, xml_model_name)
         MujocoEnv.__init__(self, model_path)
         self.robot_state = RobotState(self.sim, "end_effector")
-        self.depth_thresh = depth_thresh
+        self.goal_thresh = goal_thresh
         # init robot position for reset
         self.init_qpos = np.array([0, -np.pi/4, 0, -3 * np.pi/4, 0, np.pi/2, np.pi / 4, 0.015, 0.015])
         self._eps_time = 0
@@ -67,6 +67,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         # reset controller cmd
         self.controller.reset_pose_cmd()
         self.controller.reset_tau_cmd()
+        # reset filter
+        self.robot_state.reset_filter_state()
 
     def _hole_pose_from_model(self):
         # get hole_depth
@@ -95,7 +97,8 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
             self.robot_state.update()
         p, q = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
         # quat to angle axis
-        r = quat2vec(q)
+        r = quat2vec(q, ref=self.r_prev)
+        self.r_prev = r.copy()
         f = self.robot_state.get_ee_force(frame_quat=self.tf_quat)
         obs = np.hstack((p, r, f))
         return obs
@@ -110,46 +113,71 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         no_primitives = len(self.primitive_list)
         self.action_space = gym.spaces.Discrete(no_primitives)
 
+    # def _reward_func(self, obs, t_exec):
+    #     pos = obs[:3]
+    #     # assume the z axis align with insert direction
+    #     dist = obs[:3] - self.target_pos
+    #     rwd_near = np.min(np.exp(-dist[:2]**2 / 0.01**2)) - 1
+    #
+    #     # rwd for insertion
+    #     wi = 2
+    #     rwd_insert = wi * np.exp(-dist[2]**2/0.05**2) - wi
+    #
+    #     # limit the peg inside a box around the goal
+    #     rwd_inside = 0.
+    #     if self._is_limit_reach(pos):
+    #         rwd_inside = -50.
+    #
+    #     # rwd_short_length = -3.
+    #     rwd_short_length = -t_exec/4
+    #
+    #     rwd_terminal = 0
+    #     if self._is_success(pos):
+    #         rwd_terminal = 5.
+    #
+    #     r = rwd_near +rwd_inside +rwd_insert +rwd_short_length +rwd_terminal
+    #     return r
+
     def _reward_func(self, obs, t_exec):
         pos = obs[:3]
         # assume the z axis align with insert direction
         dist = obs[:3] - self.target_pos
-        rwd_near = np.min(np.exp(-dist[:2]**2 / 0.01**2)) - 1
-
-        # rwd for insertion
-        wi = 2
-        rwd_insert = wi * np.exp(-dist[2]**2/0.05**2) - wi
+        d = np.linalg.norm(dist)
+        wi=2
+        rwd_goal = wi * np.exp(-d**2/0.02**2) - wi
 
         # limit the peg inside a box around the goal
-        rwd_inside = 0.
-        if self._is_limit_reach(pos):
-            rwd_inside = -50.
-
+        # rwd_inside = 0.
+        # if self._is_limit_reach(pos):
+        #     rwd_inside = -50.
+        #
         # rwd_short_length = -3.
         rwd_short_length = -t_exec/4
 
         rwd_terminal = 0
         if self._is_success(pos):
-            rwd_terminal = 5.
+            rwd_terminal = 20.
 
-        r = rwd_near +rwd_inside +rwd_insert +rwd_short_length +rwd_terminal
+        r = rwd_goal+rwd_short_length +rwd_terminal
         return r
 
     # TODO check also for rotation
     def _is_limit_reach(self, p):
         return np.max(np.abs(p[:2] - self.target_pos[:2])) > self.obs_up_limit[0]
 
+    # def _is_success(self, p):
+    #     pos_thresh = 0.01
+    #     isDepthReach = p[2] < self.target_pos[2]*self.depth_thresh
+    #     isInHole = np.linalg.norm(p[:2] - self.target_pos[:2]) < pos_thresh
+    #     return (isDepthReach and isInHole)
     def _is_success(self, p):
-        pos_thresh = 0.01
-        isDepthReach = p[2] < self.target_pos[2]*self.depth_thresh
-        isInHole = np.linalg.norm(p[:2] - self.target_pos[:2]) < pos_thresh
-        return (isDepthReach and isInHole)
+        return np.linalg.norm(p[:3] - self.target_pos[:3]) < self.goal_thresh
 
     def viewer_setup(self):
-        self.viewer.cam.distance=0.43258
-        self.viewer.cam.lookat[:] = [0.517255, 0.0089188, 0.25619 ]
-        self.viewer.cam.elevation = -20.9
-        self.viewer.cam.azimuth = 132.954
+        self.viewer.cam.distance=0.21582203992783675
+        self.viewer.cam.lookat[:] = [0.51630524, 0.00990537, 0.17835332]
+        self.viewer.cam.elevation = -11.2
+        self.viewer.cam.azimuth = -134
 
     def step(self, action, render=False):
         if render:
@@ -157,36 +185,39 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         else:
             viewer = None
         type, param = self.primitive_list[action]
-        t_exec = self.container.run(type, param, viewer=viewer)
-        info = {}
-        if self._eps_time == 0:
-            p, q = self.robot_state.get_pose(self.tf_pos, self.tf_quat)
-            info["init_pos"] = p
-            info["init_quat"] = q
+        t_exec, rew = self.container.run(type, param, viewer=viewer)
         self._eps_time += t_exec
 
         #
         obs = self._get_obs()
-        reward = self._reward_func(obs, t_exec)
+        reward = self._reward_func(obs, t_exec) + rew
         isLimitReach = self._is_limit_reach(obs[:3])
         isSuccess = self._is_success(obs[:3])
         isTimeout = self._eps_time > 20.
         done = isTimeout or isLimitReach or isSuccess
 
-        info.update({"success": isSuccess,
+        if rew == 0:
+            status = 1
+        else:
+            status = 0
+        info = {"success": isSuccess,
                 "insert_depth": obs[2],
-                "eps_time": self._eps_time})
+                "mp_status": status}
 
         return self._normalize_obs(obs), reward, done, info
+        # return obs, reward, done, info
 
     def reset_to(self, p, q):
         self._reset_sim()
         self._eps_time = 0
+        # reset r ref
+        self.r_prev = quat2vec(self.target_quat)
         param = dict(pt=p, qt=q, ft=np.zeros(6), s=0.5,
-                     kp=self.kp_init, kd=self.kd_init)
+                     kp=self.kp_init, kd=self.kd_init, timeout=3)
         self.container.run("move2target", param)
         obs = self._get_obs()
         return self._normalize_obs(obs)
+        # return obs
 
     def set_task_frame(self, p, q):
         InsertionBaseEnv.set_task_frame(self, p, q)

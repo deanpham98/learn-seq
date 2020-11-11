@@ -27,6 +27,8 @@ class HybridController(TaskController):
 
         # store the command pose for external computation
         self.reset_pose_cmd()
+        self.u_pos = np.zeros(3)
+        self.S = np.eye(6)
 
         p, q = self.robot_state.get_pose()
         # controller_state
@@ -89,6 +91,7 @@ class HybridController(TaskController):
         # update pose cmd
         self.p_cmd = iS[:3, :3].dot(p) + S[:3, :3].dot(pd)
         self.q_cmd = qd
+        self.S = S
 
         # update controller state
         self.controller_state["err"] = ep
@@ -118,6 +121,9 @@ class HybridController(TaskController):
 
     def get_pose_cmd(self):
         return self.p_cmd.copy(), self.q_cmd.copy()
+
+    def get_pose_control_cmd(self):
+        return self.S[:3, :3].dot(self.p_cmd), self.q_cmd.copy()
 
 class StateRecordHybridController(HybridController):
     """Record state, useful to visualize response, trajectory."""

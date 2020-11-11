@@ -1,6 +1,6 @@
 import numpy as np
 import gym
-from learn_seq.utils.mujoco import integrate_quat
+from learn_seq.utils.mujoco import integrate_quat, quat2vec
 
 class InsertionBaseEnv(gym.Env):
     """Base environment for panda insertion task.
@@ -48,6 +48,17 @@ class InsertionBaseEnv(gym.Env):
         self.tf_pos = hole_pos
         self.tf_quat = hole_quat
 
+    # def _set_observation_space(self):
+    #     """Set observation space to be the 6D pose (rotation vector representation).
+    #     The vector is normalized to lie in the range [-1, 1]
+    #
+    #     :return: Description of returned object.
+    #     :rtype: type
+    #     """
+    #     self.obs_low_limit = np.array(self.peg_pos_range[0] + self.peg_rot_range[0])
+    #     self.obs_up_limit = np.array(self.peg_pos_range[1] + self.peg_rot_range[1])
+    #     # TODO this is wrong, calculate based on self.target_pos and self.target quat
+    #     self.observation_space = gym.spaces.Box(self.obs_low_limit, self.obs_up_limit)
     def _set_observation_space(self):
         """Set observation space to be the 6D pose (rotation vector representation).
         The vector is normalized to lie in the range [-1, 1]
@@ -55,8 +66,13 @@ class InsertionBaseEnv(gym.Env):
         :return: Description of returned object.
         :rtype: type
         """
-        self.obs_low_limit = np.array(self.peg_pos_range[0] + self.peg_rot_range[0])
-        self.obs_up_limit = np.array(self.peg_pos_range[1] + self.peg_rot_range[1])
+        peg_pos_low = self.target_pos + np.array(self.peg_pos_range[0])
+        peg_pos_up = self.target_pos + np.array(self.peg_pos_range[1])
+        r0 = quat2vec(self.target_quat)
+        peg_rot_low = r0 + np.array(self.peg_rot_range[0])
+        peg_rot_up = r0 + np.array(self.peg_rot_range[1])
+        self.obs_low_limit = np.hstack((peg_pos_low, peg_rot_low))
+        self.obs_up_limit = np.hstack((peg_pos_up, peg_rot_up))
         # TODO this is wrong, calculate based on self.target_pos and self.target quat
         self.observation_space = gym.spaces.Box(self.obs_low_limit, self.obs_up_limit)
 
@@ -68,6 +84,9 @@ class InsertionBaseEnv(gym.Env):
         q0 = integrate_quat(self.target_quat, r, 1)
         obs = self.reset_to(p0, q0)
         return obs
+
+    def get_task_frame(self):
+        return self.tf_pos.copy(), self.tf_quat.copy()
 
     def step(self):
         raise NotImplementedError
