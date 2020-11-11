@@ -54,41 +54,7 @@ def plot_progress(run_path_list):
         axs[i].legend(legend)
     plt.show()
 
-# return the evaluation environments. The policy will be tested on each environment
 def eval_envs(config):
-    envs = []
-    # test when there is no hole pose error
-    env_config = deepcopy(config.env_config)
-    # env_config["wrapper_kwargs"]["hole_pos_error_range"] = (np.zeros(3), np.zeros(3))
-    # env_config["wrapper_kwargs"]["hole_rot_error_range"] = (np.zeros(3), np.zeros(3))
-    # envs.append(gym_make(**env_config))
-
-    # test for fix initial state
-    wrapper = InitialPoseWrapper
-    wrapper_kwargs = dict(
-        p0 = np.array([0/1000, -1./1000, 0.01]),
-        r0 = np.array([0*np.pi/180, 0*np.pi/180, -1*np.pi/180])
-    )
-    env_config = append_wrapper(config.env_config,
-            wrapper=wrapper, wrapper_kwargs=wrapper_kwargs)
-    env_config["initial_pos_range"] = ([-0.0]*2+ [-0.], [0.0]*2+ [0.0])
-    env_config["initial_rot_range"] = ([0.]*3, [0.]*3)
-    envs.append(gym_make(**env_config))
-
-    # change hole pose in the mujoco environment
-    # rot = np.array([0, -60*np.pi/180, 0])
-    # hole_body_quat = integrate_quat(np.array([1., 0,0 ,0]), rot, 1)
-    # wrapper = HolePoseWrapper
-    # wrapper_kwargs = dict(
-    #     hole_body_pos=np.array([0.53, 0.012, 0.5088]),
-    #     hole_body_quat=hole_body_quat
-    # )
-    # env_config = append_wrapper(config.env_config, wrapper, wrapper_kwargs, pos="first")
-    # envs.append(gym_make(**env_config))
-
-    return envs
-
-def eval_envs2(config):
     envs = []
     # test when there is no hole pose error
     env_config = deepcopy(config.env_config)
@@ -201,7 +167,6 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
         agent = agent_class(initial_model_state_dict=state_dict,
                             model_kwargs=model_kwargs)
         #
-        # eval_env_list = eval_envs2(config)
         eval_env_list = eval_envs(config)
         agent.initialize(eval_env_list[0].spaces)
         for env in eval_env_list:
