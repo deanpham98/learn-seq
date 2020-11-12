@@ -212,7 +212,7 @@ def evaluate(run_path_list, config, eval_eps=10, render=False):
             if "round" in run_id:
                 config.env_config["xml_model_name"] = "round_pih.xml"
             if "square" in run_id:
-                config.env_config["xml_model_name"] = "square_pih2.xml"
+                config.env_config["xml_model_name"] = "square_pih.xml"
             if "triangle" in run_id:
                 config.env_config["xml_model_name"] = "triangle_pih.xml"
 
