@@ -174,10 +174,10 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         return np.linalg.norm(p[:3] - self.target_pos[:3]) < self.goal_thresh
 
     def viewer_setup(self):
-        self.viewer.cam.distance=0.21582203992783675
-        self.viewer.cam.lookat[:] = [0.51630524, 0.00990537, 0.17835332]
-        self.viewer.cam.elevation = -11.2
-        self.viewer.cam.azimuth = -134
+        self.viewer.cam.distance=0.43258
+        self.viewer.cam.lookat[:] = [0.517255, 0.0089188, 0.25619]
+        self.viewer.cam.elevation = -20.9
+        self.viewer.cam.azimuth = 132.954
 
     def step(self, action, render=False):
         if render:
@@ -186,6 +186,7 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
             viewer = None
         type, param = self.primitive_list[action]
         t_exec, rew = self.container.run(type, param, viewer=viewer)
+        info = {}
         self._eps_time += t_exec
 
         #
@@ -200,12 +201,13 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
             status = 1
         else:
             status = 0
-        info = {"success": isSuccess,
+        info.update({"success": isSuccess,
                 "insert_depth": obs[2],
-                "mp_status": status}
+                "eps_time": self._eps_time,
+                "mp_time": t_exec,
+                "mp_status": status})
 
         return self._normalize_obs(obs), reward, done, info
-        # return obs, reward, done, info
 
     def reset_to(self, p, q):
         self._reset_sim()
@@ -217,9 +219,12 @@ class MujocoInsertionEnv(InsertionBaseEnv, MujocoEnv):
         self.container.run("move2target", param)
         obs = self._get_obs()
         return self._normalize_obs(obs)
-        # return obs
 
     def set_task_frame(self, p, q):
         InsertionBaseEnv.set_task_frame(self, p, q)
         # set task frame to all primitives
         self.container.set_task_frame(p, q)
+
+    @property
+    def unwrapped(self):
+        return self

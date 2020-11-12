@@ -1,6 +1,6 @@
 import numpy as np
 import gym
-from learn_seq.utils.mujoco import integrate_quat, quat2vec
+from learn_seq.utils.mujoco import integrate_quat, quat2vec, quat_error
 
 class InsertionBaseEnv(gym.Env):
     """Base environment for panda insertion task.
@@ -44,6 +44,12 @@ class InsertionBaseEnv(gym.Env):
         self._set_observation_space()
         self._set_action_space()
 
+        # episode info
+        self.traj_info = {
+            "p0": np.zeros(3),  # init pos
+            "r0": np.zeros(3)   # init quat
+        }
+
     def set_task_frame(self, hole_pos, hole_quat):
         self.tf_pos = hole_pos
         self.tf_quat = hole_quat
@@ -77,13 +83,19 @@ class InsertionBaseEnv(gym.Env):
         self.observation_space = gym.spaces.Box(self.obs_low_limit, self.obs_up_limit)
 
     def reset(self):
+        p0, q0 = self._sample_init_pose()
+        self.traj_info["p0"] = p0 - self.initial_pos_mean
+        self.traj_info["r0"] = quat2vec(q0, self.initial_rot_mean) - self.initial_rot_mean
+        obs = self.reset_to(p0, q0)
+        return obs
+
+    def _sample_init_pose(self):
         p0 = self.initial_pos_mean + np.random.uniform(self.initial_pos_range[0],\
                                         self.initial_pos_range[1])
         r = self.initial_rot_mean + np.random.uniform(self.initial_rot_range[0],\
                                         self.initial_rot_range[1])
         q0 = integrate_quat(self.target_quat, r, 1)
-        obs = self.reset_to(p0, q0)
-        return obs
+        return p0, q0
 
     def get_task_frame(self):
         return self.tf_pos.copy(), self.tf_quat.copy()

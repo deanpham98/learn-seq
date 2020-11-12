@@ -30,7 +30,7 @@ def load_config(exp_name):
     if not os.path.exists(config_path):
         sys.exit("Experiment '%s' does not exist.\nDid you create '%s'?" %
             (exp_name, config_path))
-    config = imp.load_source("config", config_path)
+    config = imp.load_source("config" + exp_name, config_path)
 
     return config
 

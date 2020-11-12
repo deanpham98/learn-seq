@@ -33,6 +33,7 @@ class HybridController(TaskController):
         p, q = self.robot_state.get_pose()
         # controller_state
         self.controller_state = {
+            "t": self.robot_state.get_sim_time(),
             "err": np.zeros(6),
             "p": p,
             "pd": p,
@@ -94,6 +95,7 @@ class HybridController(TaskController):
         self.S = S
 
         # update controller state
+        self.controller_state["t"] = self.robot_state.get_sim_time()
         self.controller_state["err"] = ep
         self.controller_state["p"] = p
         self.controller_state["q"] = q
@@ -141,8 +143,10 @@ class StateRecordHybridController(HybridController):
         self._reset_state()
         self.record = True
 
-    def stop_record(self):
+    def stop_record(self, save_path=None):
         self.record = False
+        if save_path is not None:
+            np.save(save_path, self.state_dict)
 
     def forward_ctrl(self, *argv, **kwargs):
         res =  super().forward_ctrl(*argv, **kwargs)
