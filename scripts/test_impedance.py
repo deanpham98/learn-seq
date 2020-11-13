@@ -58,10 +58,24 @@ def test_impedance():
     controller.start_record()
     pr3.run(viewer=viewer)
     controller.stop_record()
-    controller.plot_key(["f", "fd"])
-    controller.plot_key(["kp"])
-
+    # controller.plot_key(["f", "fd"])
+    # controller.plot_key(["kp"])
+    # plt.show()
+    fig, ax = plt.subplots()
+    f = controller.state_dict["f"]
+    fd = controller.state_dict["fd"]
+    N = len(f)
+    t_record = N*controller.dt
+    ax.plot(np.linspace(0, t_record, N), np.array(f)[:, 2])
+    ax.plot(np.linspace(0, t_record, N), np.array(fd)[:, 2])
+    ax.legend(["f", "fd"])
+    # stiffness
+    fig, ax = plt.subplots()
+    kp = controller.state_dict["kp"]
+    ax.plot(np.linspace(0, t_record, N), np.array(kp)[:, 2])
+    # ax.legend(["f", "fd"])
     plt.show()
+
 
 if __name__ == '__main__':
     test_impedance()

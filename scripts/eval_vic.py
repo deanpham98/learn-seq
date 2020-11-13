@@ -90,8 +90,23 @@ def evaluate(run_path_list, eval_eps=1, render=False):
                 else:
                     obs, reward, done, info = env.env.step(a)
             env.controller.stop_record()
-            env.controller.plot_key(["kp"])
-            env.controller.plot_key(["f", "fd"])
+            # env.controller.plot_key(["kp"])
+            # env.controller.plot_key(["f", "fd"])
+            # plot z axis
+            # force
+            fig, ax = plt.subplots()
+            f = env.controller.state_dict["f"]
+            fd = env.controller.state_dict["fd"]
+            N = len(f)
+            t_record = N*env.controller.dt
+            ax.plot(np.linspace(0, t_record, N), np.array(f)[:, 2])
+            ax.plot(np.linspace(0, t_record, N), np.array(fd)[:, 2])
+            ax.legend(["f", "fd"])
+            # stiffness
+            fig, ax = plt.subplots()
+            kp = env.controller.state_dict["kp"]
+            ax.plot(np.linspace(0, t_record, N), np.array(kp)[:, 2])
+            # ax.legend(["f", "fd"])
             plt.show()
 
 if __name__ == '__main__':
