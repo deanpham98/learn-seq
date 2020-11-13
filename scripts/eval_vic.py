@@ -76,12 +76,6 @@ def evaluate(run_path_list, eval_eps=1, render=False):
         env = gym_make(**env_kwargs)
         agent.initialize(env.spaces)
         # render
-        if render:
-            viewer = mujoco_py.MjViewer(env.sim)
-            viewer.cam.distance = 0.8406425480019979
-            viewer.cam.lookat[:] = [0.49437223, 0.03581988, 0.29160004]
-            viewer.cam.elevation = -10.5
-            viewer.cam.azimuth = 141.6
         for i in range(eval_eps):
             obs = env.reset()
             done = False
@@ -91,9 +85,10 @@ def evaluate(run_path_list, eval_eps=1, render=False):
                 pr = torch.tensor(0)
                 action = agent.step(torch.tensor(obs, dtype=torch.float32), pa, pr)
                 a = np.array(action.action)
-                obs, reward, done, info = env.env.step(a)
                 if render:
-                    viewer.render()
+                    obs, reward, done, info = env.env.step(a, render=True)
+                else:
+                    obs, reward, done, info = env.env.step(a)
             env.controller.stop_record()
             env.controller.plot_key(["kp"])
             env.controller.plot_key(["f", "fd"])

@@ -127,10 +127,10 @@ class MujocoFrankaSlidingEnv(MujocoEnv):
         return rf
 
     def viewer_setup(self):
-        self.viewer.cam.distance = 0.43258
-        self.viewer.cam.lookat[:] = [0.517255, 0.0089188, 0.25619]
-        self.viewer.cam.elevation = -20.9
-        self.viewer.cam.azimuth = 132.954
+        self.viewer.cam.distance = 0.8406425480019979
+        self.viewer.cam.lookat[:] = [0.49437223, 0.03581988, 0.29160004]
+        self.viewer.cam.elevation = -10.5
+        self.viewer.cam.azimuth = 141.6
 
     def step(self, action, render=False):
         if render:
@@ -238,11 +238,6 @@ class SimpleStateSlidingEnv(MujocoFrankaSlidingEnv):
         return (a + 1)*(self.dgain_up[:3] - self.dgain_low[:3])/2 + self.dgain_low[:3]
 
     def step(self, action, render=False):
-        if render:
-            viewer = self._get_viewer()
-        else:
-            viewer = None
-
         dkp = self._action_to_gain_map(action)
         # calculate new gain
         self.kp[:3] += dkp
@@ -265,6 +260,11 @@ class SimpleStateSlidingEnv(MujocoFrankaSlidingEnv):
             self.robot_state.set_control_torque(tau_cmd)
             self.robot_state.update_dynamic()
             rew += self._reward_func()
+            if render:
+                viewer = self._get_viewer()
+                viewer.render()
+            else:
+                viewer = None
 
         obs = self._get_obs()
         rew += -0.01 * np.linalg.norm(action)
