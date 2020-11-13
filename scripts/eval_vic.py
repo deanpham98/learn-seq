@@ -78,6 +78,10 @@ def evaluate(run_path_list, eval_eps=1, render=False):
         # render
         if render:
             viewer = mujoco_py.MjViewer(env.sim)
+            viewer.cam.distance = 0.8406425480019979
+            viewer.cam.lookat[:] = [0.49437223, 0.03581988, 0.29160004]
+            viewer.cam.elevation = -10.5
+            viewer.cam.azimuth = 141.6
         for i in range(eval_eps):
             obs = env.reset()
             done = False
