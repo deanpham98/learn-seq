@@ -34,6 +34,7 @@ class ImpedanceController(TaskController):
             "pd": p,
             "q": q,
             "qd": q,
+            "kp": self.kp,
             "f":np.zeros(6)
         }
 
@@ -84,6 +85,7 @@ class ImpedanceController(TaskController):
         self.controller_state["q"] = q
         self.controller_state["pd"] = pd
         self.controller_state["qd"] = qd
+        self.controller_state["kp"] = self.kp.copy()
         self.controller_state["f"] = self.robot_state.get_ee_force()
 
         return tau_sat + tau_comp
@@ -175,9 +177,9 @@ class StateRecordImpedanceController(ImpedanceForceController):
                     ax[i, 1].plot(np.linspace(0, t_record, N), data[:, i+3])
 
         for i in range(3):
-            ax[i, 0].legend(key)
+            # ax[i, 0].legend(key)
             ax[i, 0].set_xlabel("Simulation time (s)")
-            ax[i, 1].legend(key)
+            # ax[i, 1].legend(key)
             ax[i, 1].set_xlabel("Simulation time (s)")
 
         return fig, ax

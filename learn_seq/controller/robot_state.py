@@ -126,6 +126,12 @@ class RobotState:
         # only return first 7 dofs
         return jac[:, :7].copy()
 
+    def get_ee_velocity(self):
+        """Get ee velocity w.s.t base frame"""
+        dq = self.get_joint_velocity()
+        jac = self.get_jacobian()
+        return jac.dot(dq[:7])
+
     def get_joint_velocity(self):
         return self.data.qvel.copy()
 

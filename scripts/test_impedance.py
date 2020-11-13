@@ -26,7 +26,7 @@ def test_impedance():
     tf_quat = np.array([1, 0, 0, 0.])
     pr = Move2Target(robot_state, controller, tf_pos, tf_quat)
 
-    pt = np.array([0.53, 0.06, 0.18])
+    pt = np.array([0.53, 0.062, 0.1888])
     qt = np.array([0, 1., 0, 0])
     s = 0.5
     kp = np.array([1000]*3 + [60.]*3)
@@ -47,8 +47,8 @@ def test_impedance():
     u = np.array([0, -1, 0, 0, 0, 0])
     s = 0.01
     fs = 100
-    ft = np.array([0, 0, -10, 0, 0, 0])
-    pr3.configure(u, s, fs, ft, kp, kd, 12)
+    ft = np.array([0, 0, -5, 0, 0, 0])
+    pr3.configure(u, s, fs, ft, kp, kd, 10)
 
     # run
     viewer = mujoco_py.MjViewer(sim)
@@ -56,9 +56,10 @@ def test_impedance():
     pr2.run(viewer=None)
 
     controller.start_record()
-    pr3.run(viewer=None)
+    pr3.run(viewer=viewer)
     controller.stop_record()
     controller.plot_key(["f", "fd"])
+    controller.plot_key(["kp"])
 
     plt.show()
 
