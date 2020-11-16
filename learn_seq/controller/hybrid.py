@@ -1,28 +1,31 @@
-import numpy as np
 import matplotlib.pyplot as plt
-from collections import namedtuple
-from learn_seq.utils.mujoco import quat_error, quat2vec
-from learn_seq.utils.general import saturate_vector
+import numpy as np
+
 from learn_seq.controller.base import TaskController
+from learn_seq.utils.general import saturate_vector
+from learn_seq.utils.mujoco import quat2vec, quat_error
+
 
 class HybridController(TaskController):
-    """Simulated hybrid force/position controller for the panda robot
-    The force control law is $\tau_f = J^T * (I - S) * F_d$
-    The position control law is $\tau_m = J^T * S * (K_p*e + K_d*\dot{e})
+    """Simulated parallel hybrid force/position controller, where the force
+    control part is a feedforward controller, and the position control part
+    is a PD controller.
 
-    :param type kp_init: Initial stiffness of the controller.
-    :param type dtau_max: Upper limit of torque rate.
+    :param type kp_init: Initial stiffness of the position control part.
+    :param type dtau_max: Upper limit of torque change between 2 consecutive
+                          timesteps.
     """
+
     def __init__(self, robot_state, kp_init=None, dtau_max=2.):
         super().__init__(robot_state)
         self.prev_tau_cmd = np.zeros(7)
         self.dtau_max = dtau_max
 
         if kp_init is None:
-            kp = np.array([1000.]*3 + [60]*3)
+            kp = np.array([1000.] * 3 + [60] * 3)
         else:
             kp = kp_init
-        kd = 2*np.sqrt(kp)
+        kd = 2 * np.sqrt(kp)
         self.set_gain(kp, kd)
 
         # store the command pose for external computation
@@ -70,7 +73,7 @@ class HybridController(TaskController):
         ep_dot = vd - jac.dot(dq[:7])
 
         # position control law
-        f_pos = self.kp*ep + self.kd*ep_dot
+        f_pos = self.kp * ep + self.kd * ep_dot
 
         # force control law
         f_force = fd
@@ -127,8 +130,10 @@ class HybridController(TaskController):
     def get_pose_control_cmd(self):
         return self.S[:3, :3].dot(self.p_cmd), self.q_cmd.copy()
 
+
 class StateRecordHybridController(HybridController):
     """Record state, useful to visualize response, trajectory."""
+
     def __init__(self, robot_state, kp_init=None, dtau_max=2.):
         super().__init__(robot_state, kp_init, dtau_max)
         self.record = False
@@ -145,51 +150,61 @@ class StateRecordHybridController(HybridController):
 
     def stop_record(self, save_path=None):
         self.record = False
+        # process quaterion to rotation vector
+        for i in range(len(self.state_dict["q"])):
+            self.state_dict["q"][i] = quat2vec(self.state_dict["q"][i])
+            self.state_dict["qd"][i] = quat2vec(self.state_dict["qd"][i])
         if save_path is not None:
             np.save(save_path, self.state_dict)
 
     def forward_ctrl(self, *argv, **kwargs):
-        res =  super().forward_ctrl(*argv, **kwargs)
+        res = super().forward_ctrl(*argv, **kwargs)
         if self.record:
             for key in self.state_dict.keys():
                 self.state_dict[key].append(self.controller_state[key])
         return res
 
     def plot_key(self, key):
-        """Plot data defined by a key list.
+        """Plot data defined by a key list in a same ax.
 
-        :param type key: Description of parameter `key`.
-        :return: Description of returned object.
-        :rtype: type
+        :param list key: list of strings.
+        :return: the figure and the axes.
+        :rtype: list
 
         """
-        N = len(self.state_dict[key[0]])    # no. samples
-        t_record = len(self.state_dict[key[0]]) * self.dt
-        fig, ax = plt.subplots(3, 2, sharex=True)
+        data = np.array(self.state_dict[key[0]])
+        N, dim = data.shape
+        t_record = N * self.dt
+        if dim == 6:
+            fig, ax = plt.subplots(3, 2, sharex=True)
+        elif dim == 3:
+            fig, ax = plt.subplots(3, 1, sharex=True)
         for k in key:
             data = np.array(self.state_dict[k])
             for i in range(3):
-                ax[i, 0].plot(np.linspace(0, t_record, N), data[:, i])
-                if data.shape[1] == 6:
-                    ax[i, 1].plot(np.linspace(0, t_record, N), data[:, i+3])
+                if dim == 6:
+                    ax[i, 0].plot(np.linspace(0, t_record, N), data[:, i])
+                    ax[i, 1].plot(np.linspace(0, t_record, N), data[:, i + 3])
+                elif dim == 3:
+                    ax[i].plot(np.linspace(0, t_record, N), data[:, i])
 
         for i in range(3):
-            ax[i, 0].legend(key)
-            ax[i, 0].set_xlabel("Simulation time (s)")
-            ax[i, 1].legend(key)
-            ax[i, 1].set_xlabel("Simulation time (s)")
+            if dim == 6:
+                ax[i, 0].legend(key)
+                ax[i, 0].set_xlabel("Simulation time (s)")
+                ax[i, 1].legend(key)
+                ax[i, 1].set_xlabel("Simulation time (s)")
+            elif dim == 3:
+                ax[i].legend(key)
+                ax[i].set_xlabel("Simulation time (s)")
 
         return fig, ax
 
     def plot_error(self):
-        return self.plot_key(["err",])
+        return self.plot_key(["err", ])
 
     def plot_pos(self):
         return self.plot_key(["p", "pd"])
 
     def plot_orient(self):
-        # quat to rotation vector
-        for i in range(len(self.state_dict["q"])):
-            self.state_dict["q"][i] = quat2vec(self.state_dict["q"][i])
-            self.state_dict["qd"][i] = quat2vec(self.state_dict["qd"][i])
         return self.plot_key(["q", "qd"])

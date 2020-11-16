@@ -1,27 +1,31 @@
 import numpy as np
 from mujoco_py import functions
-from learn_seq.utils.mujoco import MJ_SITE_OBJ, MJ_BODY_OBJ, MJ_GEOM_OBJ
-from learn_seq.utils.mujoco import quat2mat, pose_transform, get_contact_force,\
-            transform_spatial, inverse_frame
+
 from learn_seq.utils.filter import ButterLowPass
+from learn_seq.utils.mujoco import (MJ_SITE_OBJ, get_contact_force,
+                                    inverse_frame, pose_transform,
+                                    transform_spatial)
+
 
 class RobotState:
-    """Wrapper to the mujoco sim to store Franka state and perform
+    """Wrapper to the mujoco sim to store robot state and perform
     simulation operations (step, forward dynamic, ...).
 
-    :param mujoco_py.MjSim sim:
+    :param mujoco_py.MjSim sim: mujoco sim
     :param str ee_site_name: name of the end-effector site in mujoco xml model.
     :attr mujoco_py.MjData data: Description of parameter `data`.
     :attr mujoco_py.MjModel model: Description of parameter `model`.
     """
+
     def __init__(self, sim, ee_site_name):
         self.data = sim.data
         self.model = sim.model
-        self.ee_site_idx = functions.mj_name2id(self.model, MJ_SITE_OBJ, ee_site_name)
+        self.ee_site_idx = functions.mj_name2id(
+            self.model, MJ_SITE_OBJ, ee_site_name)
         self.isUpdated = False
         # low pass filter
         dt = sim.model.opt.timestep
-        fs = 1/dt
+        fs = 1 / dt
         cutoff = 30
         self.fe = np.zeros(6)
         self.lp_filter = ButterLowPass(cutoff, fs, order=5)
@@ -33,6 +37,7 @@ class RobotState:
         functions.mj_step1(self.model, self.data)
         # udpate the external force internally
         functions.mj_rnePostConstraint(self.model, self.data)
+        # filter ee force
         self.update_ee_force()
         self.isUpdated = True
 
@@ -111,13 +116,13 @@ class RobotState:
         """Get 6x7 geometric jacobian matrix."""
         dtype = self.data.qpos.dtype
         jac = np.zeros((6, self.model.nq), dtype=dtype)
-        jac_pos = np.zeros((3*self.model.nq), dtype=dtype)
-        jac_rot = np.zeros((3*self.model.nq), dtype=dtype)
+        jac_pos = np.zeros((3 * self.model.nq), dtype=dtype)
+        jac_rot = np.zeros((3 * self.model.nq), dtype=dtype)
         functions.mj_jacSite(
-          self.model, self.data,
-          jac_pos, jac_rot, self.ee_site_idx)
-        jac[3:] = jac_rot.reshape((3,self.model.nq))
-        jac[:3] = jac_pos.reshape((3,self.model.nq))
+            self.model, self.data,
+            jac_pos, jac_rot, self.ee_site_idx)
+        jac[3:] = jac_rot.reshape((3, self.model.nq))
+        jac[:3] = jac_pos.reshape((3, self.model.nq))
         # only return first 7 dofs
         return jac[:, :7].copy()
 
@@ -136,6 +141,6 @@ class RobotState:
         return self.data.time
 
     def set_control_torque(self, tau):
-        """Set control torque to the mujoco simulator."""
-        assert tau.shape[0]==7
+        """Set control torque to robot actuators."""
+        assert tau.shape[0] == 7
         self.data.ctrl[:] = np.hstack((tau, [0, 0]))

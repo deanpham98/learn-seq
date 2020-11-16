@@ -1,12 +1,13 @@
 import os
-import rospy
-import json
+
 import rosbag
-from functools import partial
-from std_msgs.msg import Float64MultiArray, MultiArrayDimension
+import rospy
 from franka_controllers.msg import HybridControllerState
 from franka_motion_primitive.msg import MotionGeneratorState
+from std_msgs.msg import Float64MultiArray, MultiArrayDimension
+
 from learn_seq.utils.general import create_file
+
 
 class Logger:
     """Log data from a ROS topic to a file using rosbag
@@ -40,7 +41,8 @@ class Logger:
     def stop_and_close(self, save_metadata=False):
         self._record = False
         if save_metadata:
-            self.bag.write('metadata', self.metadata, rospy.Time(self.bag.get_end_time()))
+            self.bag.write('metadata', self.metadata,
+                           rospy.Time(self.bag.get_end_time()))
         self.bag.close()
 
     def record_event(self, label, time):
@@ -48,6 +50,7 @@ class Logger:
         dim = MultiArrayDimension()
         dim.label = label
         self.metadata.layout.dim.append(dim)
+
 
 class LoggerMulti:
     """Log data from multiple publishers
@@ -57,9 +60,7 @@ class LoggerMulti:
     :param list save_dirs: list of save_dirs
 
     """
-    def __init__(self,
-                sub_topics, sub_msgs,
-                save_paths):
+    def __init__(self, sub_topics, sub_msgs, save_paths):
         self.logger = []
         for topic, msg, save_dir in zip(sub_topics, sub_msgs, save_paths):
             self.logger.append(Logger(topic, msg, save_path=save_dir))
@@ -75,6 +76,7 @@ class LoggerMulti:
     def record_event(self, label, time):
         for logger in self.logger:
             logger.record_event(label, time)
+
 
 def basic_logger(save_path, suffix="data/"):
     save_path = os.path.join(save_path, suffix)

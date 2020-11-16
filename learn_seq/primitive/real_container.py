@@ -1,14 +1,13 @@
-
 class RealPrimitiveContainer:
-    def __init__(self,
-                 ros_interface,
-                 tf_pos,
-                 tf_quat,
-                 timeout=2):
+    """Store all primitive classes and execute a specific primitives given its
+    parameters on real robot."""
+    def __init__(self, ros_interface, tf_pos, tf_quat, timeout=2):
         self.set_task_frame(tf_pos, tf_quat)
         self.ros_interface = ros_interface
 
     def run(self, type, param):
+        """Run the MP and return its status (0 for FAIL and 1 for SUCCESS),
+        and execution time"""
         if not self._is_feasible(param):
             return self.ros_interface.hold_pose()
         else:
@@ -19,13 +18,15 @@ class RealPrimitiveContainer:
             return status, t_exec
 
     def get_primitive_req(self, type, param):
-        if type=="move2target":
+        """Get the service request for running a specific MP given its type
+        and param"""
+        if type == "move2target":
             cmd = self.ros_interface.get_move_to_pose_cmd(**param)
-        elif type=="move2contact":
+        elif type == "move2contact":
             cmd = self.ros_interface.get_constant_velocity_cmd(**param)
-        elif type=="displacement":
+        elif type == "displacement":
             cmd = self.ros_interface.get_displacement_cmd(**param)
-        elif type=="admittance":
+        elif type == "admittance":
             cmd = self.ros_interface.get_admittance_cmd(**param)
         return cmd
 
@@ -34,8 +35,9 @@ class RealPrimitiveContainer:
         self.tf_quat = tf_quat
 
     def _is_feasible(self, param):
+        """Check whether a MP is feasible in current state given its param"""
         if param["ft"][2] != 0:
             p, q = self.ros_interface.get_ee_pose(self.tf_pos, self.tf_quat)
             if p[2] > 0.005:
-                 return False
+                return False
         return True

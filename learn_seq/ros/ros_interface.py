@@ -1,25 +1,33 @@
 import sys
 from copy import deepcopy
-import json
-import numpy as np
-import matplotlib.pyplot as plt
-import rospy
-import actionlib
-from franka_controllers.msg import HybridControllerState, Gain
-from franka_motion_primitive.srv import RunPrimitive, SetInitialForce,\
-                RunPrimitiveRequest, SetInitialForceRequest
-from franka_motion_primitive.msg import MotionGeneratorState, PrimitiveType,\
-                MoveToPoseParam, ConstantVelocityParam, DisplacementParam, AdmittanceMotionParam
-from franka_msgs.msg import FrankaState, ErrorRecoveryAction, ErrorRecoveryActionGoal
-from learn_seq.utils.mujoco import pose_transform, inverse_frame, quat2vec
 
+import actionlib
+import matplotlib.pyplot as plt
+import numpy as np
+import rospy
+from franka_controllers.msg import Gain, HybridControllerState
+from franka_motion_primitive.msg import (AdmittanceMotionParam,
+                                         ConstantVelocityParam,
+                                         DisplacementParam,
+                                         MotionGeneratorState, MoveToPoseParam,
+                                         PrimitiveType)
+from franka_motion_primitive.srv import (RunPrimitive, RunPrimitiveRequest,
+                                         SetInitialForce)
+from franka_msgs.msg import (ErrorRecoveryAction, ErrorRecoveryActionGoal,
+                             FrankaState)
+
+from learn_seq.utils.mujoco import inverse_frame, pose_transform, quat2vec
+
+# constants
 FRANKA_ERROR_MODE = 4
-KP_DEFAULT = np.array([2000.] + [1500.]*2 + [60, 60, 30])
-KD_DEFAULT = 2*np.sqrt(KP_DEFAULT)
+KP_DEFAULT = np.array([2000.] + [1500.] * 2 + [60, 60, 30])
+KD_DEFAULT = 2 * np.sqrt(KP_DEFAULT)
 TIMEOUT_DEFAULT = 5
 
+
 class FrankaRosInterface:
-    def __init__(self,):
+    """communicate with C++ hybrid controller"""
+    def __init__(self):
         self._record = False
         rospy.init_node("interface")
         # state
@@ -32,35 +40,42 @@ class FrankaRosInterface:
             "f": None,
             "fd": None,
             "pcmd": None,
-            "mode": None}
+            "mode": None
+        }
 
         # state subscriber (read pose)
         sub_state_topic = "/hybrid_controller/state"
-        self.sub_state = rospy.Subscriber(sub_state_topic, HybridControllerState,
-                            self._sub_state_callback)
+        self.sub_state = rospy.Subscriber(sub_state_topic,
+                                          HybridControllerState,
+                                          self._sub_state_callback)
 
         # motion generator (read force)
         sub_motion_gen_topic = "/motion_generator/state"
-        self.sub_motion_gen_state = rospy.Subscriber(sub_motion_gen_topic,
-                                        MotionGeneratorState, self._sub_motion_gen_callback)
+        self.sub_motion_gen_state = rospy.Subscriber(
+            sub_motion_gen_topic, MotionGeneratorState,
+            self._sub_motion_gen_callback)
 
         # read robot status
         sub_franka_state_topic = "/franka_state_controller/franka_states"
-        self.sub_franka_state = rospy.Subscriber(sub_franka_state_topic,
-                                        FrankaState, self._sub_franka_state_callback)
+        self.sub_franka_state = rospy.Subscriber(
+            sub_franka_state_topic, FrankaState,
+            self._sub_franka_state_callback)
         # set init force service
-        self.serv_set_init_force = rospy.ServiceProxy("/motion_generator/set_initial_force", SetInitialForce)
+        self.serv_set_init_force = rospy.ServiceProxy(
+            "/motion_generator/set_initial_force", SetInitialForce)
         # run a single primitive service
-        self.serv_run_primitive = rospy.ServiceProxy("/motion_generator/run_primitive", RunPrimitive)
+        self.serv_run_primitive = rospy.ServiceProxy(
+            "/motion_generator/run_primitive", RunPrimitive)
         # error recovery action server
-        self._recovery_action_client = actionlib.SimpleActionClient('/franka_control/error_recovery', ErrorRecoveryAction)
+        self._recovery_action_client = actionlib.SimpleActionClient(
+            '/franka_control/error_recovery', ErrorRecoveryAction)
         self.reset_record_data()
         # wait until subscriber is on
         timeout = 0.
         while self._state["t"] is None:
             rospy.sleep(0.01)
             timeout += 0.01
-            if timeout>5.:
+            if timeout > 5.:
                 sys.exit("Fail to connect to ROS publisher")
                 break
         rospy.sleep(1.)
@@ -72,6 +87,7 @@ class FrankaRosInterface:
         self._state["q"] = np.array(msg.q)
         self._state["qd"] = np.array(msg.qd)
         self._state["pcmd"] = np.array(msg.p_cmd)
+        # record state for saving
         if self._record:
             self._record_data["p"].append([msg.time, msg.p])
             self._record_data["pd"].append([msg.time, msg.pd])
@@ -80,6 +96,7 @@ class FrankaRosInterface:
 
     def _sub_motion_gen_callback(self, msg):
         # self._state["f"] = np.array(msg.f_ee)
+        # ft sensor signal
         self._state["f"] = np.array(msg.f_s)
         self._state["fd"] = np.array(msg.fd)
         if self._record:
@@ -110,10 +127,10 @@ class FrankaRosInterface:
 
     def plot_pose(self):
         fig, ax = plt.subplots(3, 2)
-        data =deepcopy(self._record_data)
+        data = deepcopy(self._record_data)
         for k in self._record_data.keys():
             t = np.array([i[0] for i in data[k]])
-            if k is "q" or k is "qd":
+            if k == "q" or k == "qd":
                 d = np.array([quat2vec(np.array(i[1])) for i in data[k]])
             else:
                 d = np.array([i[1] for i in data[k]])
@@ -131,10 +148,10 @@ class FrankaRosInterface:
 
     def plot_force(self):
         fig, ax = plt.subplots(3, 2)
-        data =deepcopy(self._record_data)
+        data = deepcopy(self._record_data)
         for k in self._record_data.keys():
             t = np.array([i[0] for i in data[k]])
-            if k is "q" or k is "qd":
+            if k == "q" or k == "qd":
                 d = np.array([quat2vec(np.array(i[1])) for i in data[k]])
             else:
                 d = np.array([i[1] for i in data[k]])
@@ -142,68 +159,75 @@ class FrankaRosInterface:
             data[k] = (t, d)
         for i in range(3):
             for j in range(2):
-                ax[i, j].plot(data["f"][0], data["f"][1][:, i+3*j])
-                ax[i, j].plot(data["fd"][0], data["fd"][1][:, i+3*j])
+                ax[i, j].plot(data["f"][0], data["f"][1][:, i + 3 * j])
+                ax[i, j].plot(data["fd"][0], data["fd"][1][:, i + 3 * j])
                 ax[i, j].legend(["c", "d"])
         fig.suptitle("force")
         return ax
 
     def run_primitive(self, cmd):
-        # print("run primitive {}", action)
+        """Send Primitive run service to ROS controller"""
         rospy.wait_for_service("/motion_generator/run_primitive")
         try:
             res = self.serv_run_primitive(cmd)
             return res.status, res.time
         except rospy.ServiceException as e:
-            print("Service RunPrimitive call failed: %s"%e)
+            print("Service RunPrimitive call failed: %s" % e)
             return None, None
 
     def set_init_force(self):
-        # print("start calling service SetInitialForce")
+        """Send service request to set init force"""
         rospy.wait_for_service("/motion_generator/set_initial_force")
         try:
             res = self.serv_set_init_force()
             if res.success == 1:
                 print("Set init force success")
         except rospy.ServiceException as e:
-            print("Service SetInitialForce call failed: %s"%e)
-        # print("end calling service SetInitialForce")
+            print("Service SetInitialForce call failed: %s" % e)
 
-    def error_recovery(self):
-        goal = ErrorRecoveryActionGoal()
-        self._recovery_action_client.send_goal(goal)
-        self._recovery_action_client.wait_for_result(rospy.Duration.from_sec(2.0))
-
-    def move_to_pose(self, p, q, s,
-                     tf_pos=np.zeros(3),
-                     tf_quat=np.array([1., 0, 0 ,0]),
+    def move_to_pose(self,
+                     p,     # target position
+                     q,     # target orientation (quaternion)
+                     s,     # speed factor
+                     tf_pos=np.zeros(3),    # task frame pos
+                     tf_quat=np.array([1., 0, 0, 0]),   # task frame orientation
                      timeout=5.):
-        cmd = self.get_move_to_pose_cmd(p, q, np.zeros(6), s,
-                                        KP_DEFAULT, KD_DEFAULT,
-                                        tf_pos, tf_quat, timeout)
-        status, t_exec =  self.run_primitive(cmd)
+        """Move to a target pose"""
+        cmd = self.get_move_to_pose_cmd(p, q, np.zeros(6), s, KP_DEFAULT,
+                                        KD_DEFAULT, tf_pos, tf_quat, timeout)
+        status, t_exec = self.run_primitive(cmd)
         return status, t_exec
 
     def move_up(self, s=0.05, timeout=2.):
+        """Move up"""
         u = np.array([0, 0, 1., 0, 0, 0])
-        cmd = self.get_constant_velocity_cmd(u, s=s, fs=100, ft=np.zeros(6),
-                    kp=KP_DEFAULT, kd=KD_DEFAULT, timeout=timeout)
+        cmd = self.get_constant_velocity_cmd(u,
+                                             s=s,
+                                             fs=100,
+                                             ft=np.zeros(6),
+                                             kp=KP_DEFAULT,
+                                             kd=KD_DEFAULT,
+                                             timeout=timeout)
 
-        status, t_exec =  self.run_primitive(cmd)
+        status, t_exec = self.run_primitive(cmd)
         return status, t_exec
 
     def hold_pose(self):
+        """Hold current pose"""
         p = self._state["p"].copy()
         q = self._state["q"].copy()
         status, t_exec = self.move_to_pose(p, q, 0.01)
         return status, t_exec
 
     def error_recovery(self):
+        """Recovery Franka error"""
         goal = ErrorRecoveryActionGoal()
         self._recovery_action_client.send_goal(goal)
-        self._recovery_action_client.wait_for_result(rospy.Duration.from_sec(2.0))
+        self._recovery_action_client.wait_for_result(
+            rospy.Duration.from_sec(2.0))
 
     def get_ee_pose(self, frame_pos=None, frame_quat=None):
+        """Get current ee pose w.r.t a specific frame"""
         p = self._state["p"].copy()
         q = self._state["q"].copy()
         if frame_pos is None:
@@ -215,18 +239,29 @@ class FrankaRosInterface:
         return pf, qf
 
     def get_ee_pos(self):
+        """Get current position w.r.t the base frame"""
         return self._state["p"].copy()
 
     def get_ee_force(self, frame_quat=None):
+        """Get current force w.r.t a particular frame orientation"""
         return self._state["f"]
 
     def get_robot_mode(self):
+        """Get current robot mode"""
         return self._state["mode"]
 
-    def get_move_to_pose_cmd(self, pt, qt, ft, s, kp, kd,
-                             tf_pos=np.zeros(3),
-                             tf_quat=np.array([1., 0,0 ,0]),
+    def get_move_to_pose_cmd(self,
+                             pt,    # target position
+                             qt,    # target orientation
+                             ft,    # target force
+                             s,     # speed factor
+                             kp,    # stiffness
+                             kd,    # damping
+                             tf_pos=np.zeros(3),    # task frame position
+                             tf_quat=np.array([1., 0, 0, 0]),   # task frame
+                                                                # orientation
                              timeout=None):
+        """Convert param to ROS msg"""
         cmd = RunPrimitiveRequest()
         # cmd.type = PrimitiveType.MoveToPose
         cmd.type = PrimitiveType.MoveToPoseFeedback
@@ -247,10 +282,17 @@ class FrankaRosInterface:
         # gain
         return cmd
 
-    def get_constant_velocity_cmd(self, u, s, fs, ft, kp, kd,
+    def get_constant_velocity_cmd(self,
+                                  u,    # move direction
+                                  s,    # speed factor
+                                  fs,   # threshold force
+                                  ft,   # target force
+                                  kp,   # stiffness
+                                  kd,   # damping
                                   tf_pos=np.zeros(3),
-                                  tf_quat=np.array([1., 0,0 ,0]),
+                                  tf_quat=np.array([1., 0, 0, 0]),
                                   timeout=None):
+        """Convert param to ROS msg"""
         cmd = RunPrimitiveRequest()
         cmd.type = PrimitiveType.ConstantVelocity
 
@@ -268,10 +310,18 @@ class FrankaRosInterface:
         cmd.constant_velocity_param = p
         return cmd
 
-    def get_displacement_cmd(self, u, s, fs, ft, delta_d, kp, kd,
+    def get_displacement_cmd(self,
+                             u,     # move direction
+                             s,     # speed factor
+                             fs,    # force threshold
+                             ft,    # target force
+                             delta_d,   # distance threshold
+                             kp,    # stiffness
+                             kd,    # damping
                              tf_pos=np.zeros(3),
-                             tf_quat=np.array([1., 0,0 ,0]),
+                             tf_quat=np.array([1., 0, 0, 0]),
                              timeout=None):
+        """Convert param to ROS msg"""
         cmd = RunPrimitiveRequest()
         cmd.type = PrimitiveType.Displacement
 
@@ -291,10 +341,17 @@ class FrankaRosInterface:
 
         return cmd
 
-    def get_admittance_cmd(self, kd_adt, ft, pt, goal_thresh, kp, kd,
-                            tf_pos=np.zeros(3),
-                            tf_quat=np.array([1., 0,0 ,0]),
-                            timeout=None):
+    def get_admittance_cmd(self,
+                           kd_adt,  # admittance matrix
+                           ft,      # target force
+                           pt,      # goal position
+                           goal_thresh,  # goal thresh
+                           kp,      # stiffness
+                           kd,      # damping
+                           tf_pos=np.zeros(3),
+                           tf_quat=np.array([1., 0, 0, 0]),
+                           timeout=None):
+        """Convert param to ROS msg"""
         cmd = RunPrimitiveRequest()
         cmd.type = PrimitiveType.AdmittanceMotion
 
@@ -313,6 +370,7 @@ class FrankaRosInterface:
         return cmd
 
     def get_gain_cmd(self, kp, kd=None):
+        """Convert numpy array to Gain Msg"""
         cmd = Gain()
         if kd is None:
             cmd.kDefineDamping = 0

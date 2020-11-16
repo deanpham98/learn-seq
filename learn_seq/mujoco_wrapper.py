@@ -1,22 +1,23 @@
 import numpy as np
 from mujoco_py import functions
-from learn_seq.utils.mujoco import MJ_BODY_OBJ, MJ_GEOM_OBJ, MJ_SITE_OBJ,\
-            MJ_BOX, MJ_MESH, MJ_CYLINDER
-from learn_seq.utils.mujoco import get_geom_size, get_geom_friction, get_body_mass,\
-            set_geom_friction, set_geom_size, set_body_mass, get_body_pose,\
-            set_body_pose
+
+from learn_seq.utils.mujoco import (MJ_BODY_OBJ, MJ_BOX, MJ_CYLINDER,
+                                    MJ_GEOM_OBJ, MJ_MESH, get_body_mass,
+                                    get_body_pose, get_geom_friction,
+                                    get_geom_size, set_body_mass,
+                                    set_body_pose, set_geom_friction,
+                                    set_geom_size)
 
 
 class MujocoModelWrapper:
     def __init__(self, model):
         self.model = model
         self.peg_name = "peg"
-        self.hole_body_name  = "hole"
-        self.peg_geom_id = functions.mj_name2id(self.model, MJ_GEOM_OBJ, self.peg_name)
-        self.peg_body_id = functions.mj_name2id(self.model, MJ_BODY_OBJ, self.peg_name)
-        # joint_names = ["panda0_joint{}".format(i) for i in range(1, 8)]
-        # # dof_id = joint_id in the case of revolute joints
-        # self.joint_idx = [functions.mj_name2id(self.model, 4, n) for n in joint_names]
+        self.hole_body_name = "hole"
+        self.peg_geom_id = functions.mj_name2id(self.model, MJ_GEOM_OBJ,
+                                                self.peg_name)
+        self.peg_body_id = functions.mj_name2id(self.model, MJ_BODY_OBJ,
+                                                self.peg_name)
 
         self.map_set = {
             "friction": self.set_friction,
@@ -42,11 +43,11 @@ class MujocoModelWrapper:
         shape = self.get_shape()
         if shape == "round":
             peg_dia = get_geom_size(self.model, self.peg_name)[0]
-            hole_dia = np.ceil(peg_dia *1000) / 1000.
+            hole_dia = np.ceil(peg_dia * 1000) / 1000.
             return peg_dia, hole_dia
         elif shape == "square":
             peg_side = get_geom_size(self.model, self.peg_name)[0]
-            hole_side = np.ceil(peg_side *1000) / 1000.
+            hole_side = np.ceil(peg_side * 1000) / 1000.
             return peg_side, hole_side
 
     def get_friction(self):
@@ -81,9 +82,13 @@ class MujocoModelWrapper:
         _, hole_size = self.get_size()
         peg_size_arr = get_geom_size(self.model, self.peg_name)
         if self.get_shape() == "round":
-            new_peg_size = [hole_size - clearance, peg_size_arr[1], peg_size_arr[2]]
+            new_peg_size = [
+                hole_size - clearance, peg_size_arr[1], peg_size_arr[2]
+            ]
         else:
-            new_peg_size = [hole_size - clearance, hole_size - clearance, peg_size_arr[2]]
+            new_peg_size = [
+                hole_size - clearance, hole_size - clearance, peg_size_arr[2]
+            ]
 
         set_geom_size(self.model, self.peg_name, new_peg_size)
 

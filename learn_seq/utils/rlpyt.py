@@ -1,9 +1,11 @@
 import os
-import gym
+
 import torch
-import numpy as np
+from rlpyt.envs.gym import GymEnvWrapper, EnvInfoWrapper
 from rlpyt.samplers.collections import TrajInfo
-from rlpyt.envs.gym import GymEnvWrapper
+
+import gym
+
 
 class CustomTrajInfo(TrajInfo):
     def __init__(self, **kwargs):
@@ -19,7 +21,12 @@ class CustomTrajInfo(TrajInfo):
             self.InsertDepth = getattr(env_info, "insert_depth")
             self.Time = getattr(env_info, "eps_time")
 
-def gym_make(*args, info_example=None, wrapper=None, wrapper_kwargs=None, **kwargs):
+
+def gym_make(*args,
+             info_example=None,
+             wrapper=None,
+             wrapper_kwargs=None,
+             **kwargs):
     """adapted from rlpyt.envs.gym.gym_make
     add the option to append an additional wrapper
     """
@@ -43,16 +50,15 @@ def gym_make(*args, info_example=None, wrapper=None, wrapper_kwargs=None, **kwar
             return GymEnvWrapper(EnvInfoWrapper(env, info_example))
         else:
             return GymEnvWrapper(
-                        EnvInfoWrapper(
-                            wrapper(env, **wrapper_kwargs),
-                            info_example
-                        )
-                    )
+                EnvInfoWrapper(wrapper(env, **wrapper_kwargs), info_example))
+
 
 def load_agent_state_dict(data_path):
+    """Load neural network model"""
     model_path = os.path.join(data_path, "params.pkl")
     if torch.cuda.is_available():
-        model_data = torch.load(model_path, map_location=torch.device("cuda:0"))
+        model_data = torch.load(model_path,
+                                map_location=torch.device("cuda:0"))
     else:
         model_data = torch.load(model_path, map_location=torch.device("cpu"))
     agent_state_dict = model_data["agent_state_dict"]

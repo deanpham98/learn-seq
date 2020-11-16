@@ -1,10 +1,13 @@
-import os
-import imp
+import sys
 import csv
-import numpy as np
-import learn_seq
-from functools import partial
+import imp
+import os
 from collections import OrderedDict
+
+import numpy as np
+
+import learn_seq
+
 
 def create_file(path):
     '''
@@ -13,26 +16,32 @@ def create_file(path):
     if not os.path.exists(path):
         os.mknod(path)
 
+
+# TODO: find another way to store experiment folder and mujoco model
 def get_module_path():
     return os.path.dirname(os.path.dirname(learn_seq.__file__))
+
 
 def get_mujoco_model_path():
     module_path = get_module_path()
     return os.path.join(module_path, "mujoco/franka_pih")
 
+
 def get_exp_path(exp_name):
     module_path = get_module_path()
     return os.path.join(module_path, "exp/" + exp_name)
+
 
 def load_config(exp_name):
     exp_path = get_exp_path(exp_name)
     config_path = os.path.join(exp_path, "config.py")
     if not os.path.exists(config_path):
         sys.exit("Experiment '%s' does not exist.\nDid you create '%s'?" %
-            (exp_name, config_path))
+                 (exp_name, config_path))
     config = imp.load_source("config" + exp_name, config_path)
 
     return config
+
 
 def read_csv(file_path):
     data = OrderedDict()
@@ -41,22 +50,23 @@ def read_csv(file_path):
         key_list = None
         data_list = []
         for i, row in enumerate(ptr):
-            if i==0:
+            if i == 0:
                 key_list = row
             else:
-                data_ptr= []
+                data_ptr = []
                 for r in row:
                     try:
                         data_ptr.append(float(r))
                     except ValueError:
-                        if r=="True":
+                        if r == "True":
                             data_ptr.append(1)
-                        elif r=="False":
+                        elif r == "False":
                             data_ptr.append(0)
                 data_list.append(data_ptr)
     for i, k in enumerate(key_list):
         data[k] = [d[i] for d in data_list]
     return data
+
 
 def get_dirs(path):
     dir_list = []
@@ -64,6 +74,7 @@ def get_dirs(path):
         if file.is_dir():
             dir_list.append(file)
     return dir_list
+
 
 def saturate_vector(v1, v2, dmax):
     """Limit the difference |v2 - v1| <= dmax, i.e.
@@ -78,5 +89,5 @@ def saturate_vector(v1, v2, dmax):
     :rtype: np.array
     """
     assert dmax >= 0
-    dv =  np.minimum(dmax, np.maximum(-dmax, v2 - v1))
+    dv = np.minimum(dmax, np.maximum(-dmax, v2 - v1))
     return v1 + dv

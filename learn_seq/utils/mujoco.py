@@ -1,17 +1,20 @@
 import os
-import numpy as np
+
 import mujoco_py
+import numpy as np
 from mujoco_py import functions
+
 from learn_seq.utils.general import get_mujoco_model_path
 
 # object indicator in mujoco
-MJ_SITE_OBJ = 6     # `site` objec
-MJ_BODY_OBJ = 1     # `body` object
-MJ_GEOM_OBJ = 5     # `geom` object
+MJ_SITE_OBJ = 6  # `site` objec
+MJ_BODY_OBJ = 1  # `body` object
+MJ_GEOM_OBJ = 5  # `geom` object
 # geom types
 MJ_CYLINDER = 5
 MJ_BOX = 6
 MJ_MESH = 7
+
 
 def load_model(xml_name="round_pih.xml"):
     """Load a model from `mujoco/franka_pih`
@@ -29,14 +32,16 @@ def load_model(xml_name="round_pih.xml"):
 
     return sim
 
+
 def attach_viewer(sim):
     return mujoco_py.MjViewer(sim)
 
+
 def set_state(sim, qpos, qvel):
-    assert qpos.shape == (sim.model.nq,) and qvel.shape == (sim.model.nv,)
+    assert qpos.shape == (sim.model.nq, ) and qvel.shape == (sim.model.nv, )
     old_state = sim.get_state()
-    new_state = mujoco_py.MjSimState(old_state.time, qpos, qvel,
-                                     old_state.act, old_state.udd_state)
+    new_state = mujoco_py.MjSimState(old_state.time, qpos, qvel, old_state.act,
+                                     old_state.udd_state)
     sim.set_state(new_state)
     sim.forward()
 
@@ -64,7 +69,7 @@ def get_contact_force(mj_model, mj_data, body_name, frame_pos, frame_quat):
     pf_inv, qf_inv = np.zeros(3), np.zeros(4)
     functions.mju_negPose(pf_inv, qf_inv, pf, qf)
     # T^com_target
-    p_ct, q_ct=  np.zeros(3), np.zeros(4)
+    p_ct, q_ct = np.zeros(3), np.zeros(4)
     functions.mju_mulPose(p_ct, q_ct, pf_inv, qf_inv, frame_pos, frame_quat)
     # q_ct -> mat
     mat_ct = np.zeros(9)
@@ -72,11 +77,12 @@ def get_contact_force(mj_model, mj_data, body_name, frame_pos, frame_quat):
 
     # transform to desired frame
     trn_force = force_com.copy()
-    functions.mju_transformSpatial(trn_force, force_com, 1,
-                        p_ct, np.zeros(3), mat_ct)
+    functions.mju_transformSpatial(trn_force, force_com, 1, p_ct, np.zeros(3),
+                                   mat_ct)
 
     # reverse order to get force:torque format
     return np.concatenate((trn_force[3:], trn_force[:3]))
+
 
 def get_geom_pose(model, geom_name):
     """Return the geom pose (relative to parent body).
@@ -91,6 +97,7 @@ def get_geom_pose(model, geom_name):
     quat = model.geom_quat[geom_id, :]
     return pos, quat
 
+
 def get_geom_size(model, geom_name):
     """Return the geom size.
 
@@ -101,22 +108,27 @@ def get_geom_size(model, geom_name):
     :rtype: np.array(3)
     """
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
-    if model.geom_type[geom_id] == MJ_BOX or model.geom_type[geom_id] == MJ_CYLINDER:
+    if model.geom_type[geom_id] == MJ_BOX or model.geom_type[
+            geom_id] == MJ_CYLINDER:
         return model.geom_size[geom_id, :]
     else:
         return None
+
 
 def get_geom_friction(model, geom_name):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
     return model.geom_friction[geom_id, :]
 
+
 def get_body_mass(model, body_name):
     body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
     return model.body_mass[body_id]
 
+
 def get_body_pose(model, body_name):
     body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
     return model.body_pos[body_id], model.body_quat[body_id]
+
 
 def get_mesh_vertex_pos(model, geom_name):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
@@ -124,25 +136,30 @@ def get_mesh_vertex_pos(model, geom_name):
     mesh_id = model.geom_dataid[geom_id]
     first_vertex_id = model.mesh_vertadr[mesh_id]
     no_vertex = model.mesh_vertnum[mesh_id]
-    vertex_pos = model.mesh_vert[first_vertex_id:first_vertex_id+no_vertex]
+    vertex_pos = model.mesh_vert[first_vertex_id:first_vertex_id + no_vertex]
     return vertex_pos
+
 
 def set_geom_size(model, geom_name, size):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
     model.geom_size[geom_id, :] = size
 
+
 def set_body_mass(model, body_name, mass):
     body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
     model.body_mass[body_id] = mass
+
 
 def set_geom_friction(model, geom_name, friction):
     geom_id = functions.mj_name2id(model, MJ_GEOM_OBJ, geom_name)
     model.geom_friction[geom_id, :] = friction
 
+
 def set_body_pose(model, body_name, pos, quat):
     body_id = functions.mj_name2id(model, MJ_BODY_OBJ, body_name)
     model.body_pos[body_id, :] = pos
     model.body_quat[body_id, :] = quat
+
 
 # -------- GEOMETRY TOOLs
 def quat_error(q1, q2):
@@ -162,7 +179,7 @@ def quat_error(q1, q2):
     if isinstance(q2, list):
         q2 = np.array(q2)
 
-    dtype=q1.dtype
+    dtype = q1.dtype
     neg_q1 = np.zeros(4, dtype=dtype)
     err_rot_quat = np.zeros(4, dtype=dtype)
     err_rot = np.zeros(3, dtype=dtype)
@@ -175,6 +192,7 @@ def quat_error(q1, q2):
     functions.mju_quat2Vel(err_rot, err_rot_quat, 1)
     return err_rot
 
+
 def quat2mat(q):
     """Tranform a quaternion to rotation amtrix.
 
@@ -185,6 +203,7 @@ def quat2mat(q):
     mat = np.zeros(9)
     functions.mju_quat2Mat(mat, q)
     return mat.reshape((3, 3))
+
 
 def pose_transform(p1, q1, p21, q21):
     """Coordinate transformation between 2 frames
@@ -202,8 +221,9 @@ def pose_transform(p1, q1, p21, q21):
 
     p2 = p21 + R21.dot(p1)
     q2 = np.zeros_like(q1)
-    functions.mju_mulQuat(q2, q21, q1) #q2 = q21*q1
+    functions.mju_mulQuat(q2, q21, q1)  # q2 = q21*q1
     return p2, q2
+
 
 def integrate_quat(q, r, dt):
     """Integrate quaternion by a fixed angular velocity over the duration dt.
@@ -216,15 +236,16 @@ def integrate_quat(q, r, dt):
     """
     qres = np.zeros(4)
     qe = np.zeros(4)
-    r = r*dt
+    r = r * dt
     angle = np.linalg.norm(r)
     if angle < 1e-9:
         # if angle too small then return current q
         return q.copy()
-    axis = r/angle
+    axis = r / angle
     functions.mju_axisAngle2Quat(qe, axis, angle)
     functions.mju_mulQuat(qres, qe, q)
     return qres
+
 
 def transform_spatial(v1, q21):
     """Coordinate transformation of a spatial vector. The spatial vector can be either
@@ -239,6 +260,7 @@ def transform_spatial(v1, q21):
     R = np.block([[R21, np.zeros((3, 3))], [np.zeros((3, 3)), R21]])
     return R.dot(v1)
 
+
 def similarity_transform(A1, q21):
     """Similarity transformation of a matrix from frame 1 to frame 2
             A2 = R21 * A1 * R12
@@ -252,21 +274,10 @@ def similarity_transform(A1, q21):
     R21 = quat2mat(q21)
     return R21.dot(A1.dot(R21.T))
 
-# def quat2vec(q):
-#     """Transform quaternion representation to rotation vector representation"""
-#     r = np.zeros(3)
-#     scale = 1
-#     mujoco_py.functions.mju_quat2Vel(r, q, scale)
-#     if r[0] < 0:
-#         angle = np.linalg.norm(r)
-#         r = r / angle
-#         if angle < 0:
-#             angle = -angle
-#         else:
-#             angle = 2*np.pi - angle
-#         r = -r*angle
-#     return r
 
+# NOTE: there are infinite rotation vector solutions for a particular
+# orientation, the `ref` is to find the closest solution to a reference.
+# Is there another minimal representation that could avoid this?
 def quat2vec(q, ref=None):
     """Transform quaternion representation to rotation vector representation"""
     r = np.zeros(3)
@@ -276,20 +287,23 @@ def quat2vec(q, ref=None):
         if r.dot(ref) < 0:
             angle = np.linalg.norm(r)
             r = r / angle
-            angle = angle - 2*np.pi
-            r = r*angle
+            angle = angle - 2 * np.pi
+            r = r * angle
     return r
+
 
 def inverse_frame(p, q):
     pi, qi = np.zeros(3), np.zeros(4)
     functions.mju_negPose(pi, qi, p, q)
     return pi, qi
 
+
 def mat2quat(R):
     R = R.flatten()
     q = np.zeros(4)
     mujoco_py.functions.mju_mat2Quat(q, R)
     return q
+
 
 def mul_quat(q1, q2):
     q = np.zeros(4)

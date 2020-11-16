@@ -1,9 +1,10 @@
 
 class TaskController(object):
     """Base class for Panda task space controller in Mujoco. The controller
-    receives the desired position, velocity or force of the end-effector in the
-    base frame and returns the command torque.
-    The end-effector definition is in `robot_state`
+    receives the desired position, velocity and/or force of the end-effector in
+    the base frame and returns the command torque.
+
+    The end-effector definition is in the `RobotState` robot_state.
 
     :param learn_seq.controller.RobotState robot_state: access simulation data
     """
@@ -14,8 +15,13 @@ class TaskController(object):
         self.dt = self.robot_state.get_timestep()
 
     def forward_ctrl(self, *argv, **kwargs):
-        """Implement the control law. The input can be depends on teh specific
-        controller
+        """Implement the control law. The inputs may depends on the specific
+        controller, which are usually composed of one or multiple, but
+        not limited to the following components:
+
+            - end-effector position
+            - end-effector velocity
+            - external force
 
         :return: joint torque
         :rtype: np.array(7)
@@ -32,4 +38,5 @@ class TaskController(object):
         self.robot_state.update_dynamic()
 
     def get_controller_rate(self):
+        """Timestep of the controller"""
         return 1/self.dt

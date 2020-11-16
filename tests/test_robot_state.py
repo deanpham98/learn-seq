@@ -1,8 +1,5 @@
-import pytest
-from numpy import pi
-import numpy as np
-from learn_seq.controller.robot_state import RobotState
-from learn_seq.utils.mujoco import load_model, attach_viewer, set_state
+from learn_seq.utils.mujoco import attach_viewer
+
 
 def test_mj_step(state):
     state.update()

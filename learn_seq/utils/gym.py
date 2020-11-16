@@ -1,43 +1,9 @@
 from copy import deepcopy
-import gym
-import os
+
 import numpy as np
-import mujoco_py
-from gym.envs.mujoco import mujoco_env
-from gym.spaces import Space, Discrete
 
-class MujocoEnvBase(mujoco_env.MujocoEnv):
-    def __init__(self, model_path, frame_skip):
-        if model_path.startswith("/"):
-            fullpath = model_path
-        else:
-            fullpath = os.path.join(os.path.dirname(__file__), "assets", model_path)
-        if not os.path.exists(fullpath):
-            raise IOError("File %s does not exist" % fullpath)
-        self.frame_skip = frame_skip
-        self.model = mujoco_py.load_model_from_path(fullpath)
-        self.sim = mujoco_py.MjSim(self.model)
-        self.data = self.sim.data
-        self.viewer = None
-        self._viewers = {}
+from gym.spaces import Discrete, Space
 
-        self.metadata = {
-            'render.modes': ['human', 'rgb_array', 'depth_array'],
-            'video.frames_per_second': int(np.round(1.0 / self.dt))
-        }
-
-        self.init_qpos = self.sim.data.qpos.ravel().copy()
-        self.init_qvel = self.sim.data.qvel.ravel().copy()
-
-        self._set_action_space()
-
-        action = self.action_space.sample()
-        observation, _reward, done, _info = self.step(action)
-        assert not done
-
-        self._set_observation_space(observation)
-
-        self.seed()
 
 class DynamicDiscrete(Space):
     """
@@ -47,7 +13,9 @@ class DynamicDiscrete(Space):
     It is assumed that there is a finite number of subspaces A_i(s), and that
     n = |union(A_i(s))|
 
-    The user provide n and the list of indices of the actions in a subspace A_i(s)
+    The user provide n and the list of indices of the actions
+    in a subspace A_i(s)
+
     E.g: A_1(s) = (1, 2, 3, 4), A_2(s) = (3, 5, 6, 7)
     then n = 7, sub_indices = [[1,2,3,4], [3,5,6,7]]
     """
@@ -71,19 +39,24 @@ class DynamicDiscrete(Space):
     def contains(self, x):
         if isinstance(x, int):
             as_int = x
-        elif isinstance(x, (np.generic, np.ndarray)) and (x.dtype.char in np.typecodes['AllInteger'] and x.shape == ()):
+        elif isinstance(x, (np.generic, np.ndarray)) and (
+                x.dtype.char in np.typecodes['AllInteger'] and x.shape == ()):
             as_int = int(x)
         else:
             return False
         return as_int >= 0 and as_int < self.n
 
     def __repr__(self):
-        return "DynamicDiscrete({}, {})".format(len(self.sub_indices[0]),len(self.sub_indices[1]))
+        return "DynamicDiscrete({}, {})".format(len(self.sub_indices[0]),
+                                                len(self.sub_indices[1]))
 
     def __eq__(self, other):
         return isinstance(other, Discrete) and self.n == other.n
 
+
 def append_wrapper(config, wrapper, wrapper_kwargs, pos="last"):
+    """Append a new wrapper to the current wrapper config. If the current
+    wrapper is not a list, convert it to a list"""
     newconf = deepcopy(config)
     old_wrapper = config["wrapper"]
     old_kwargs = config["wrapper_kwargs"]
@@ -98,17 +71,17 @@ def append_wrapper(config, wrapper, wrapper_kwargs, pos="last"):
 
     # append new wrapper
     if not isinstance(wrapper, list):
-        if pos=="last":
+        if pos == "last":
             new_wrapper.append(wrapper)
             new_wrapper_kwargs.append(wrapper_kwargs)
-        elif pos=="first":
+        elif pos == "first":
             new_wrapper.insert(0, wrapper)
             new_wrapper_kwargs.insert(0, wrapper_kwargs)
     else:
-        if pos=="last":
+        if pos == "last":
             new_wrapper = new_wrapper + wrapper
             new_wrapper_kwargs = new_wrapper_kwargs + wrapper_kwargs
-        elif pos=="first":
+        elif pos == "first":
             new_wrapper = wrapper + new_wrapper
             new_wrapper_kwargs = wrapper_kwargs + new_wrapper_kwargs
     newconf["wrapper"] = new_wrapper
