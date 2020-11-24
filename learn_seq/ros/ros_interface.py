@@ -5,9 +5,8 @@ import actionlib
 import matplotlib.pyplot as plt
 import numpy as np
 import rospy
-from franka_controllers.msg import Gain, HybridControllerState
-from franka_motion_primitive.msg import (AdmittanceMotionParam,
-                                         ConstantVelocityParam,
+from franka_example_controllers.msg import Gain, VariableImpedanceControllerState
+from franka_motion_primitive.msg import (ConstantVelocityParam,
                                          DisplacementParam,
                                          MotionGeneratorState, MoveToPoseParam,
                                          PrimitiveType)
@@ -20,14 +19,27 @@ from learn_seq.utils.mujoco import inverse_frame, pose_transform, quat2vec
 
 # constants
 FRANKA_ERROR_MODE = 4
-KP_DEFAULT = np.array([2000.] + [1500.] * 2 + [60, 60, 30])
+KP_DEFAULT = np.array([1000., 1000, 1000, 60, 60, 60])
 KD_DEFAULT = 2 * np.sqrt(KP_DEFAULT)
 TIMEOUT_DEFAULT = 5
 
 
 class FrankaRosInterface:
     """communicate with C++ hybrid controller"""
-    def __init__(self):
+    def __init__(self,
+                 sub_state_topic="/variable_impedance_controller/state",
+                 sub_motion_gen_topic="/motion_generator/state",
+                 sub_franka_state_topic="/franka_state_controller/franka_states",
+                 set_init_force_serv_name="/motion_generator/set_initial_force",
+                 run_primitive_serv_name="/motion_generator/run_primitive",
+                 recovery_action_name="/franka_control/error_recovery"):
+
+        self.sub_state_topic = sub_state_topic
+        self.sub_motion_gen_topic = sub_motion_gen_topic
+        self.sub_franka_state_topic = sub_franka_state_topic
+        self.set_init_force_serv_name = set_init_force_serv_name
+        self.run_primitive_serv_name = run_primitive_serv_name
+        self.recovery_action_name = recovery_action_name
         self._record = False
         rospy.init_node("interface")
         # state
@@ -39,36 +51,34 @@ class FrankaRosInterface:
             "qd": None,
             "f": None,
             "fd": None,
-            "pcmd": None,
-            "mode": None
+            # "pcmd": None,
+            "mode": None,
+            "ee_vel": None
         }
 
         # state subscriber (read pose)
-        sub_state_topic = "/hybrid_controller/state"
         self.sub_state = rospy.Subscriber(sub_state_topic,
-                                          HybridControllerState,
+                                          VariableImpedanceControllerState,
                                           self._sub_state_callback)
 
         # motion generator (read force)
-        sub_motion_gen_topic = "/motion_generator/state"
         self.sub_motion_gen_state = rospy.Subscriber(
             sub_motion_gen_topic, MotionGeneratorState,
             self._sub_motion_gen_callback)
 
         # read robot status
-        sub_franka_state_topic = "/franka_state_controller/franka_states"
         self.sub_franka_state = rospy.Subscriber(
             sub_franka_state_topic, FrankaState,
             self._sub_franka_state_callback)
         # set init force service
         self.serv_set_init_force = rospy.ServiceProxy(
-            "/motion_generator/set_initial_force", SetInitialForce)
+            set_init_force_serv_name, SetInitialForce)
         # run a single primitive service
         self.serv_run_primitive = rospy.ServiceProxy(
-            "/motion_generator/run_primitive", RunPrimitive)
+            run_primitive_serv_name, RunPrimitive)
         # error recovery action server
         self._recovery_action_client = actionlib.SimpleActionClient(
-            '/franka_control/error_recovery', ErrorRecoveryAction)
+            recovery_action_name, ErrorRecoveryAction)
         self.reset_record_data()
         # wait until subscriber is on
         timeout = 0.
@@ -86,7 +96,10 @@ class FrankaRosInterface:
         self._state["pd"] = np.array(msg.pd)
         self._state["q"] = np.array(msg.q)
         self._state["qd"] = np.array(msg.qd)
+        self._state["jacobian"] = np.reshape(np.array(msg.jacobian), (6, 7))
+        self._state["ee_vel"] = np.array(msg.ee_vel)
         self._state["pcmd"] = np.array(msg.p_cmd)
+
         # record state for saving
         if self._record:
             self._record_data["p"].append([msg.time, msg.p])
@@ -167,7 +180,7 @@ class FrankaRosInterface:
 
     def run_primitive(self, cmd):
         """Send Primitive run service to ROS controller"""
-        rospy.wait_for_service("/motion_generator/run_primitive")
+        rospy.wait_for_service(self.run_primitive_serv_name)
         try:
             res = self.serv_run_primitive(cmd)
             return res.status, res.time
@@ -177,7 +190,7 @@ class FrankaRosInterface:
 
     def set_init_force(self):
         """Send service request to set init force"""
-        rospy.wait_for_service("/motion_generator/set_initial_force")
+        rospy.wait_for_service(self.set_init_force_serv_name)
         try:
             res = self.serv_set_init_force()
             if res.success == 1:
@@ -237,6 +250,14 @@ class FrankaRosInterface:
         inv_pos, inv_quat = inverse_frame(frame_pos, frame_quat)
         pf, qf = pose_transform(p, q, inv_pos, inv_quat)
         return pf, qf
+
+    def get_ee_velocity(self):
+        """Get current ee velocity w.r.t base frame"""
+        return self._state["ee_vel"]
+
+    def get_zero_jacobian(self):
+        """Get Zero Jacobian"""
+        return self._state["jacobian"]
 
     def get_ee_pos(self):
         """Get current position w.r.t the base frame"""
@@ -380,6 +401,10 @@ class FrankaRosInterface:
             cmd.kp = kp
             cmd.kd = kd
         return cmd
+
+    def set_gain(self, kp, kd=None):
+        cmd = self.get_gain_cmd(kp, kd)
+        
 
     def get_ros_time(self):
         return self._state["t"]
