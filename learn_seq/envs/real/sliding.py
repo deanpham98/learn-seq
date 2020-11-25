@@ -51,17 +51,6 @@ class RealSlidingEnv(gym.Env):
         # move to target
         tf_pos = np.array([0, 0, 0])
         tf_quat = np.array([1., 0, 0, 0])
-        
-        """
-        @Todo: Use Another Move2Target and Move2Contact implementation
-        """
-        # self.mp1 = Move2Target(
-        #     self.ros_interface, tf_pos, tf_quat)
-        # self.mp2 = Move2Contact(
-        #     self.ros_interface, tf_pos, tf_quat)
-        # # sliding
-        # self.mp_sliding = Move2Contact(
-        #     self.ros_inteface, tf_pos, tf_quat)
 
         # sliding distance
         self.d_slide = 0.1
@@ -169,10 +158,6 @@ class RealSlidingEnv(gym.Env):
         return self.tf_pos.copy(), self.tf_quat.copy()
 
     def _get_obs(self):
-        """
-        @Todo: Use Hardware Interface here
-        """
-
         v = self.ros_interface.get_ee_velocity()
         f = self.ros_interface.get_ee_force()
         fd = np.array([0, 0, -self.fd, 0, 0, 0])
