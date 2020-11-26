@@ -14,7 +14,7 @@ from rlpyt.samplers.parallel.cpu.collectors import CpuResetCollector
 def build_and_train(log_dir, n_parallel=4):
     # environment
     env_kwargs = dict(
-        id="learn_seq:SimpleMujocoSlidingEnv-v0",
+        id="learn_seq:RealSlidingEnv-v0",
         fd_range=[5., 5.],      # fix force
         speed_range=[0.01, 0.01],  # fix speed
     )

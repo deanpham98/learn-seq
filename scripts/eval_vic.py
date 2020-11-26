@@ -69,7 +69,7 @@ def evaluate(run_path_list, eval_eps=1, render=False):
         )
         # environment
         env_kwargs = dict(
-            id="learn_seq:SimpleMujocoSlidingEnv-v0",
+            id="learn_seq:RealSlidingEnv-v0",
             fd_range=[5., 5.],      # fix force
             speed_range=[0.01, 0.01],  # fix speed
         )
