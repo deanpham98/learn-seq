@@ -1,3 +1,4 @@
+import math
 import sys
 from copy import deepcopy
 
@@ -5,7 +6,8 @@ import actionlib
 import matplotlib.pyplot as plt
 import numpy as np
 import rospy
-from franka_example_controllers.msg import Gain, VariableImpedanceControllerState
+from franka_example_controllers.msg import Gain, VariableImpedanceControllerState,
+                                            VariableImpedanceControllerCommand
 from franka_motion_primitive.msg import (ConstantVelocityParam,
                                          DisplacementParam,
                                          MotionGeneratorState, MoveToPoseParam,
@@ -28,6 +30,8 @@ class FrankaRosInterface:
     """communicate with C++ hybrid controller"""
     def __init__(self,
                  sub_state_topic="/variable_impedance_controller/state",
+                 pub_command_topic="/variable_impedance_controller/command",
+                 pub_gain_topic="/variable_impedance_controller/gain",
                  sub_motion_gen_topic="/motion_generator/state",
                  sub_franka_state_topic="/franka_state_controller/franka_states",
                  set_init_force_serv_name="/motion_generator/set_initial_force",
@@ -60,6 +64,11 @@ class FrankaRosInterface:
         self.sub_state = rospy.Subscriber(sub_state_topic,
                                           VariableImpedanceControllerState,
                                           self._sub_state_callback)
+
+        # Publishers
+        self.pub_command = rospy.Publisher(pub_command_topic,
+                                           VariableImpedanceControllerCommand)
+        self.pub_gain = rospy.Publisher(pub_gain_topic, Gain)
 
         # motion generator (read force)
         self.sub_motion_gen_state = rospy.Subscriber(
@@ -98,7 +107,6 @@ class FrankaRosInterface:
         self._state["qd"] = np.array(msg.qd)
         self._state["jacobian"] = np.reshape(np.array(msg.jacobian), (6, 7))
         self._state["ee_vel"] = np.array(msg.ee_vel)
-        self._state["pcmd"] = np.array(msg.p_cmd)
 
         # record state for saving
         if self._record:
@@ -390,21 +398,31 @@ class FrankaRosInterface:
 
         return cmd
 
-    def get_gain_cmd(self, kp, kd=None):
+    def get_gain(self, kp, kd=None):
         """Convert numpy array to Gain Msg"""
-        cmd = Gain()
-        if kd is None:
-            cmd.kDefineDamping = 0
-            cmd.kp = kp
-        else:
-            cmd.kDefineDamping = 1
-            cmd.kp = kp
-            cmd.kd = kd
-        return cmd
+        gain = Gain()
+        gain.kp = kp
+        gain.kd = kd
+        return gain
 
     def set_gain(self, kp, kd=None):
-        cmd = self.get_gain_cmd(kp, kd)
+        if kd is None:
+            kd = 2 * math.sqrt(kp)
+        gain = self.get_gain(kp, kd)
+        pub_gain.publish(gain)
         
+    def get_cmd(self, f, p, q, v):
+        cmd = VariableImpedanceControllerCommand()
+        cmd.f = f
+        cmd.p = p
+        cmd.q = q
+        cmd.v = v
+
+        return cmd
+
+    def set_cmd(self, f, p, q, v):
+        cmd = get_cmd()
+        pub_command.publish(cmd)
 
     def get_ros_time(self):
         return self._state["t"]

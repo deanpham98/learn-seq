@@ -41,9 +41,6 @@ class RealSlidingEnv(gym.Env):
         self.q0 = np.array([0, -np.pi / 4, 0, -3 * np.pi / 4,
                             0, np.pi / 2, np.pi / 4, 0.015, 0.015])
 
-        """
-        @Todo: How to obtain init_pos
-        """
         # init pos
         self.init_pos = np.array([0.53, 0.062, 0.1888])
         self.init_quat = np.array([0., 1, 0, 0])
@@ -51,17 +48,6 @@ class RealSlidingEnv(gym.Env):
         # move to target
         tf_pos = np.array([0, 0, 0])
         tf_quat = np.array([1., 0, 0, 0])
-        
-        """
-        @Todo: Use Another Move2Target and Move2Contact implementation
-        """
-        # self.mp1 = Move2Target(
-        #     self.ros_interface, tf_pos, tf_quat)
-        # self.mp2 = Move2Contact(
-        #     self.ros_interface, tf_pos, tf_quat)
-        # # sliding
-        # self.mp_sliding = Move2Contact(
-        #     self.ros_inteface, tf_pos, tf_quat)
 
         # sliding distance
         self.d_slide = 0.1
@@ -75,7 +61,7 @@ class RealSlidingEnv(gym.Env):
 
         # init gain
         self.kp_init = KP_DEFAULT
-        self.kd_init = 2*np.sqrt(self.kp_init)
+        self.kd_init = 2 * np.sqrt(self.kp_init)
         self.kp = self.kp_init.copy()
         self.kd = self.kd_init.copy()
 
@@ -110,33 +96,31 @@ class RealSlidingEnv(gym.Env):
         self.observation_space = gym.spaces.Box(self.obs_low_limit, self.obs_up_limit)
 
     def reset(self):
-        self._eps_time = 0
-
         # if error is detected, clear it first
         if self.ros_interface.get_robot_mode() == FRANKA_ERROR_MODE:
-            self.ros_inteface.move_up(timeout=0.5)
+            self.ros_interface.move_up(timeout=0.5)
             self.ros_interface.error_recovery()
 
         # # reset kp
         self.kp = self.kp_init
         self.kd = self.kd_init
-        self.ros_inteface.set_gain(self.kp_init, self.kd_init)
+        self.ros_interface.set_gain(self.kp_init, self.kd_init)
         time.sleep(0.5)
         
         # move to init pose
-        self.ros_inteface.move_to_pose(self.init_pos, self.init_quat, 0.5, self.tf_pos, self.tf_quat, 10.)
+        self.ros_interface.move_to_pose(self.init_pos, self.init_quat, 0.5, self.tf_pos, self.tf_quat, 10.)
 
         # move down until contact
         u = np.array([0, 0, -1., 0, 0, 0])
         ft = np.zeros(6)
-        cmd = self.ros_inteface.get_const_velocity_cmd(u,
+        cmd = self.ros_interface.get_const_velocity_cmd(u,
                                                        0.01,
                                                        5.,
                                                        ft,
                                                        kp=self.kp_init,
                                                        kd=self.kd_init,
                                                        timeout=10.)
-        self.ros_inteface.run_primitive(cmd)
+        self.ros_interface.run_primitive(cmd)
 
         # set random fd
         self.fd = np.random.uniform(low=self.fd_range[0], high=self.fd_range[1])
@@ -146,14 +130,6 @@ class RealSlidingEnv(gym.Env):
         u = np.array([0, -1, 0, 0, 0, 0])
         ft = np.array([0, 0, -self.fd, 0, 0, 0])
         self.timeout = self.d_slide / (self.s)
-        cmd = self.ros_inteface.get_const_velocity_cmd(u,
-                                                       s,
-                                                       1000,
-                                                       ft,
-                                                       kp=self.kp,
-                                                       kd=self.kd,
-                                                       timeout=self.timeout)
-        self.ros_inteface.run_primitive(cmd)
 
         return self._get_obs()
 
@@ -169,10 +145,6 @@ class RealSlidingEnv(gym.Env):
         return self.tf_pos.copy(), self.tf_quat.copy()
 
     def _get_obs(self):
-        """
-        @Todo: Use Hardware Interface here
-        """
-
         v = self.ros_interface.get_ee_velocity()
         f = self.ros_interface.get_ee_force()
         fd = np.array([0, 0, -self.fd, 0, 0, 0])
@@ -208,27 +180,23 @@ class RealSlidingEnv(gym.Env):
         self.kd = 2 * np.sqrt(self.kp)
 
         # Update Gains
-        u = np.array([0, -1, 0, 0, 0, 0])
+        self.ros_interface.set_gain(self.kp, self.kd)
+        u = np.array([0, -self.s, 0, 0, 0, 0])
         ft = np.array([0, 0, -self.fd, 0, 0, 0])
-        cmd = self.ros_inteface.get_const_velocity_cmd(u,
-                                                       self.s,
-                                                       1000,
-                                                       ft,
-                                                       kp=self.kp,
-                                                       kd=self.kd,
-                                                       timeout=self.timeout)
-        status, t_exec = self.ros_inteface.run_primitive(cmd)
-        self._eps_time += t_exec
 
+        cur_tf_pos = np.array([0., -self.s * self.ros_interface.get_ros_time() , 0.])
+
+        self.ros_interface.set_cmd(ft, cur_tf_pos, self.tf_quat, u)
+         
         # Get next observation and reward received due to last action
         obs = self._get_obs()
         rew = self._reward_func()
         rew += -0.01 * np.linalg.norm(action)
 
         # Terminates after 120s?
-        done = self._eps_time > 120. or self._is_robot_error()
+        done = self.ros_interface.get_ros_time() > 120. or self._is_robot_error()
         
         return obs, rew, done, {}
 
     def _is_robot_error(self):
-        return self.ros_inteface.get_robot_mode() == FRANKA_ERROR_MODE
+        return self.ros_interface.get_robot_mode() == FRANKA_ERROR_MODE
