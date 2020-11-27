@@ -19,3 +19,8 @@ register(
     id='SimpleMujocoSlidingEnv-v0',
     entry_point='learn_seq.envs.mujoco.sliding:SimpleStateSlidingEnv',
 )
+
+register(
+    id='RealSlidingEnv-v0',
+    entry_point='learn_seq.envs.real.sliding:RealSlidingEnv',
+)

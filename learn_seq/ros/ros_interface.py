@@ -6,7 +6,7 @@ import actionlib
 import matplotlib.pyplot as plt
 import numpy as np
 import rospy
-from franka_example_controllers.msg import Gain, VariableImpedanceControllerState,
+from franka_example_controllers.msg import Gain, VariableImpedanceControllerState, \
                                             VariableImpedanceControllerCommand
 from franka_motion_primitive.msg import (ConstantVelocityParam,
                                          DisplacementParam,
@@ -429,3 +429,9 @@ class FrankaRosInterface:
 
     def get_pose_control_cmd(self):
         return self._state["pcmd"], self._state["qd"]
+
+    def get_pos(self):
+        return self._state["p"].copy()
+
+    def get_quat(self):
+        return self._state["q"].copy()
