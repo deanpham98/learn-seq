@@ -130,6 +130,7 @@ class RealSlidingEnv(gym.Env):
         u = np.array([0, -1, 0, 0, 0, 0])
         ft = np.array([0, 0, -self.fd, 0, 0, 0])
         self.timeout = self.d_slide / (self.s)
+        self.p0_, self.q0_ = self.ros_interface.get_ee_pose()
 
         return self._get_obs()
 
@@ -184,9 +185,10 @@ class RealSlidingEnv(gym.Env):
         u = np.array([0, -self.s, 0, 0, 0, 0])
         ft = np.array([0, 0, -self.fd, 0, 0, 0])
 
-        cur_tf_pos = np.array([0., -self.s * self.ros_interface.get_ros_time() , 0.])
+        cur_pos = u * self.ros_interface.get_ros_time()
+        cur_pos = cur_pos[:3] + self.p0_
 
-        self.ros_interface.set_cmd(ft, cur_tf_pos, self.tf_quat, u)
+        self.ros_interface.set_cmd(ft, cur_pos, self.q0_, u)
          
         # Get next observation and reward received due to last action
         obs = self._get_obs()
