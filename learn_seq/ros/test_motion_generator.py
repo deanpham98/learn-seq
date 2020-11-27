@@ -13,8 +13,8 @@ class TestMoveToPose:
 
     def test_position_control(self):
         cmd = self.ros_interface.get_move_to_pose_cmd()
-        cmd.move_to_pose_param.target_pose.pos -= 0.1
-        cmd.move_to_pose_param.speed_factor = 0.1
+        cmd.move_to_pose_param.target_pose.pos[1] += -0.03
+        cmd.move_to_pose_param.speed_factor = 0.03
         result, time_run = self.ros_interface.run_primitive(cmd)
         print("result: {}, time run {}".format(result, time_run))
 
@@ -99,10 +99,12 @@ class TestMoveToPose:
 if __name__ == '__main__':
     test = TestMoveToPose()
     # test.test_null_cmd()    # pass
-    # test.test_position_control()
+    test.test_position_control()
     # test.test_orientation_control()
     # test.test_task_frame2()
-    test.test_task_frame()
+    # test.test_task_frame()
     # test.test_speed()
     # test.test_sequence()
     # NOTE: pass all
+
+    # [0.999109,0.00339341,0.041838,0,0.004087,-0.999846,-0.0165033,0,0.0417763,0.0166599,-0.998988,0,0.513504,0.0901372,0.216613,1]

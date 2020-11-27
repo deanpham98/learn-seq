@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 def test_env():
     env = gym.make(id="learn_seq:RealSlidingEnv-v0")
     # viewer = mujoco_py.MjViewer(env.sim)
-    # env.reset()
+    env.reset()
     # done = False
     # env.controller.start_record()
     # while not done:

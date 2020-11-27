@@ -280,12 +280,12 @@ class FrankaRosInterface:
         return self._state["mode"]
 
     def get_move_to_pose_cmd(self,
-                             pt,    # target position
-                             qt,    # target orientation
-                             ft,    # target force
-                             s,     # speed factor
-                             kp,    # stiffness
-                             kd,    # damping
+                             pt=None,    # target position
+                             qt=None,    # target orientation
+                             ft=np.zeros(6),    # target force
+                             s=0.1,     # speed factor
+                             kp=KP_DEFAULT,    # stiffness
+                             kd=KD_DEFAULT,    # damping
                              tf_pos=np.zeros(3),    # task frame position
                              tf_quat=np.array([1., 0, 0, 0]),   # task frame
                                                                 # orientation
@@ -298,13 +298,13 @@ class FrankaRosInterface:
         p.task_frame.pos = tf_pos
         p.task_frame.quat = tf_quat
 
-        p.target_pose.pos = pt
-        p.target_pose.quat = qt
+        p.target_pose.pos = self.get_pos() if pt is None else pt
+        p.target_pose.quat = self.get_quat() if qt is None else qt
 
         p.speed_factor = s
         p.timeout = timeout or TIMEOUT_DEFAULT
         p.fd = ft
-        p.controller_gain = self.get_gain_cmd(kp, kd)
+        p.controller_gain = self.get_gain(kp, kd)
 
         cmd.time = rospy.Time.now().to_sec()
         cmd.move_to_pose_param = p
@@ -312,12 +312,12 @@ class FrankaRosInterface:
         return cmd
 
     def get_constant_velocity_cmd(self,
-                                  u,    # move direction
-                                  s,    # speed factor
-                                  fs,   # threshold force
-                                  ft,   # target force
-                                  kp,   # stiffness
-                                  kd,   # damping
+                                  u=[0,1.0,0,0,0],    # move direction
+                                  s=0.01,    # speed factor
+                                  fs=100.,   # threshold force
+                                  ft=np.zeros(6),   # target force
+                                  kp=KP_DEFAULT,   # stiffness
+                                  kd=KD_DEFAULT,   # damping
                                   tf_pos=np.zeros(3),
                                   tf_quat=np.array([1., 0, 0, 0]),
                                   timeout=None):
@@ -333,7 +333,7 @@ class FrankaRosInterface:
         p.timeout = timeout or TIMEOUT_DEFAULT
         p.f_thresh = fs
         p.fd = ft
-        p.controller_gain = self.get_gain_cmd(kp, kd)
+        p.controller_gain = self.get_gain(kp, kd)
 
         cmd.time = rospy.Time.now().to_sec()
         cmd.constant_velocity_param = p
@@ -363,7 +363,7 @@ class FrankaRosInterface:
         p.f_thresh = fs
         p.fd = ft
         p.displacement = delta_d
-        p.controller_gain = self.get_gain_cmd(kp, kd)
+        p.controller_gain = self.get_gain(kp, kd)
 
         cmd.time = rospy.Time.now().to_sec()
         cmd.displacement_param = p
@@ -392,7 +392,7 @@ class FrankaRosInterface:
         p.goal_thresh = goal_thresh
         p.pt = pt
         p.timeout = timeout or TIMEOUT_DEFAULT
-        p.controller_gain = self.get_gain_cmd(kp, kd)
+        p.controller_gain = self.get_gain(kp, kd)
         cmd.time = rospy.Time.now().to_sec()
         cmd.admittance_motion_param = p
 

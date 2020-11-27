@@ -42,7 +42,7 @@ class RealSlidingEnv(gym.Env):
                             0, np.pi / 2, np.pi / 4, 0.015, 0.015])
 
         # init pos
-        self.init_pos = np.array([0.53, 0.062, 0.1888])
+        self.init_pos = np.array([0.51468, 0.0904345, 0.206895])
         self.init_quat = np.array([0., 1, 0, 0])
 
         # move to target
