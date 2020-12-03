@@ -1,6 +1,6 @@
 import transforms3d.quaternions as Q
 import numpy as np
-from ros_interface import FrankaRosInterface
+from learn_seq.ros.ros_interface import FrankaRosInterface
 
 class TestMoveToPose:
     def __init__(self):
@@ -13,7 +13,7 @@ class TestMoveToPose:
 
     def test_position_control(self):
         cmd = self.ros_interface.get_move_to_pose_cmd()
-        cmd.move_to_pose_param.target_pose.pos[1] += -0.03
+        cmd.move_to_pose_param.target_pose.pos[2] += 0.03
         cmd.move_to_pose_param.speed_factor = 0.03
         result, time_run = self.ros_interface.run_primitive(cmd)
         print("result: {}, time run {}".format(result, time_run))

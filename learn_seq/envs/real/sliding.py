@@ -1,8 +1,8 @@
 import time
-
+import rospy
 import gym
 import numpy as np
-
+import transforms3d.quaternions as Q
 from learn_seq.ros.ros_interface import (FRANKA_ERROR_MODE, KP_DEFAULT,
                                          FrankaRosInterface)
 
@@ -31,8 +31,8 @@ class RealSlidingEnv(gym.Env):
 
     """
     def __init__(self,
-                 fd_range=[5, 10],
-                 speed_range=[0.01, 0.02]):
+                 fd_range=[3, 5],
+                 speed_range=[0.03, 0.05]):
         
         # ros_interface to communicate with the ROS Controller
         self.ros_interface = FrankaRosInterface()
@@ -42,15 +42,15 @@ class RealSlidingEnv(gym.Env):
                             0, np.pi / 2, np.pi / 4, 0.015, 0.015])
 
         # init pos
-        self.init_pos = np.array([0.51468, 0.0904345, 0.206895])
+        self.init_pos = np.array([0.558861, 0.127538, 0.23938])
         self.init_quat = np.array([0., 1, 0, 0])
 
         # move to target
-        tf_pos = np.array([0, 0, 0])
-        tf_quat = np.array([1., 0, 0, 0])
+        self.tf_pos = np.array([0, 0, 0])
+        self.tf_quat = np.array([1., 0, 0, 0])
 
         # sliding distance
-        self.d_slide = 0.1
+        self.d_slide = 0.08
 
         # fd range (varied every time reset)
         self.fd_range = fd_range
@@ -106,23 +106,25 @@ class RealSlidingEnv(gym.Env):
         self.kd = self.kd_init
         self.ros_interface.set_gain(self.kp_init, self.kd_init)
         time.sleep(0.5)
-        
-        # move to init pose
-        self.ros_interface.move_to_pose(self.init_pos, self.init_quat, 0.5, self.tf_pos, self.tf_quat, 10.)
+        import pdb
+        pdb.set_trace()
+        self.ros_interface.move_up()
+        self.ros_interface.move_up()
 
-        # move down until contact
-        u = np.array([0, 0, -1., 0, 0, 0])
-        ft = np.zeros(6)
-        cmd = self.ros_interface.get_const_velocity_cmd(u,
-                                                       0.01,
-                                                       5.,
-                                                       ft,
-                                                       kp=self.kp_init,
-                                                       kd=self.kd_init,
-                                                       timeout=10.)
+        # move to init pose
+        self.ros_interface.move_to_pose(self.init_pos, self.init_quat, 0.2, self.tf_pos, self.tf_quat, 10.)
+
+        cmd = self.ros_interface.get_constant_velocity_cmd()
+        cmd.constant_velocity_param.speed_factor = 0.01
+        cmd.constant_velocity_param.direction = np.array([0, 0, -1., 0, 0, 0])
+
+        # move for 1 sec
+        cmd.constant_velocity_param.timeout = 10.
+        cmd.constant_velocity_param.f_thresh = 2.
         self.ros_interface.run_primitive(cmd)
 
         # set random fd
+        # self.fd = self.fd_range[0]
         self.fd = np.random.uniform(low=self.fd_range[0], high=self.fd_range[1])
         self.s = np.random.uniform(low = self.speed_range[0], high=self.speed_range[1])
 
@@ -131,6 +133,9 @@ class RealSlidingEnv(gym.Env):
         ft = np.array([0, 0, -self.fd, 0, 0, 0])
         self.timeout = self.d_slide / (self.s)
         self.p0_, self.q0_ = self.ros_interface.get_ee_pose()
+        # print(self.p0_)
+        time.sleep(1)
+        self.start = rospy.Time.now().to_sec()
 
         return self._get_obs()
 
@@ -162,8 +167,7 @@ class RealSlidingEnv(gym.Env):
 
         self.action_space = gym.spaces.Box(dgain_low, dgain_up)
 
-    def _reward_func(self):
-        # f = self.robot_state.get_ee_force()
+    def _reward_func(self, f):
         ef = -self.fd - f[2]
         rf = 1./8 - 2/(1 + np.exp(-np.abs(ef / 2) + 4))
         return rf
@@ -171,7 +175,7 @@ class RealSlidingEnv(gym.Env):
     def step(self, action):
         dkp = self._action_to_gain_map(action)
         # calculate new gain
-        self.kp[:3] += dkp
+        self.kp += dkp
         for i, kpi in enumerate(self.kp):
             if kpi > self.gain_up[i]:
                 self.kp[i] = self.gain_up[i]
@@ -184,20 +188,20 @@ class RealSlidingEnv(gym.Env):
         self.ros_interface.set_gain(self.kp, self.kd)
         u = np.array([0, -self.s, 0, 0, 0, 0])
         ft = np.array([0, 0, -self.fd, 0, 0, 0])
-
-        cur_pos = u * self.ros_interface.get_ros_time()
-        cur_pos = cur_pos[:3] + self.p0_
-
-        self.ros_interface.set_cmd(ft, cur_pos, self.q0_, u)
-         
-        # Get next observation and reward received due to last action
+        for i in range(40):
+            cur_pos = u * (rospy.Time.now().to_sec() - self.start)
+            cur_pos = cur_pos[:3] + self.p0_
+            # print(cur_pos)
+            self.ros_interface.set_cmd(ft, cur_pos, self.q0_, u)
+            rospy.sleep(0.001)
+            # Get next observation and reward received due to last action
         obs = self._get_obs()
-        rew = self._reward_func()
+        rew = self._reward_func(obs[6:12])
         rew += -0.01 * np.linalg.norm(action)
 
         # Terminates after 120s?
-        done = self.ros_interface.get_ros_time() > 120. or self._is_robot_error()
-        
+        done = rospy.Time.now().to_sec() - self.start > self.timeout or self._is_robot_error()
+            
         return obs, rew, done, {}
 
     def _is_robot_error(self):

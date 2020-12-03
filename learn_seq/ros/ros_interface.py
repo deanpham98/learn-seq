@@ -114,15 +114,17 @@ class FrankaRosInterface:
             self._record_data["pd"].append([msg.time, msg.pd])
             self._record_data["q"].append([msg.time, msg.q])
             self._record_data["qd"].append([msg.time, msg.qd])
+            self._record_data["f"].append([msg.time, msg.fe])
+            self._record_data["fd"].append([msg.time, msg.fd])
 
     def _sub_motion_gen_callback(self, msg):
         # self._state["f"] = np.array(msg.f_ee)
         # ft sensor signal
         self._state["f"] = np.array(msg.f_s)
         self._state["fd"] = np.array(msg.fd)
-        if self._record:
-            self._record_data["f"].append([msg.stamp, msg.f_s])
-            self._record_data["fd"].append([msg.stamp, msg.fd])
+        # if self._record:
+        #     self._record_data["f"].append([msg.stamp, msg.f_s])
+            # self._record_data["fd"].append([msg.stamp, msg.fd])
 
     def _sub_franka_state_callback(self, msg):
         self._state["mode"] = msg.robot_mode
@@ -162,8 +164,8 @@ class FrankaRosInterface:
             ax[i, 1].plot(data["q"][0], data["q"][1][:, i])
             ax[i, 0].plot(data["pd"][0], data["pd"][1][:, i])
             ax[i, 1].plot(data["qd"][0], data["qd"][1][:, i])
-            ax[i, 0].legend(["c", "d"])
-            ax[i, 1].legend(["c", "d"])
+            ax[i, 0].legend(["cur", "des"])
+            ax[i, 1].legend(["cur", "des"])
         fig.suptitle("position and orientation")
         return ax
 
@@ -182,7 +184,7 @@ class FrankaRosInterface:
             for j in range(2):
                 ax[i, j].plot(data["f"][0], data["f"][1][:, i + 3 * j])
                 ax[i, j].plot(data["fd"][0], data["fd"][1][:, i + 3 * j])
-                ax[i, j].legend(["c", "d"])
+                ax[i, j].legend(["cur", "des"])
         fig.suptitle("force")
         return ax
 
@@ -219,7 +221,7 @@ class FrankaRosInterface:
         status, t_exec = self.run_primitive(cmd)
         return status, t_exec
 
-    def move_up(self, s=0.05, timeout=2.):
+    def move_up(self, s=0.03, timeout=2.):
         """Move up"""
         u = np.array([0, 0, 1., 0, 0, 0])
         cmd = self.get_constant_velocity_cmd(u,
@@ -409,7 +411,7 @@ class FrankaRosInterface:
         if kd is None:
             kd = 2 * math.sqrt(kp)
         gain = self.get_gain(kp, kd)
-        pub_gain.publish(gain)
+        self.pub_gain.publish(gain)
         
     def get_cmd(self, f, p, q, v):
         cmd = VariableImpedanceControllerCommand()
@@ -421,8 +423,8 @@ class FrankaRosInterface:
         return cmd
 
     def set_cmd(self, f, p, q, v):
-        cmd = get_cmd()
-        pub_command.publish(cmd)
+        cmd = self.get_cmd(f, p, q, v)
+        self.pub_command.publish(cmd)
 
     def get_ros_time(self):
         return self._state["t"]
