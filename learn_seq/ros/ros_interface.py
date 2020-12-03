@@ -8,6 +8,7 @@ import numpy as np
 import rospy
 from franka_example_controllers.msg import Gain, VariableImpedanceControllerState, \
                                             VariableImpedanceControllerCommand
+from franka_example_controllers.srv import ResetController, ResetControllerRequest
 from franka_motion_primitive.msg import (ConstantVelocityParam,
                                          DisplacementParam,
                                          MotionGeneratorState, MoveToPoseParam,
@@ -36,7 +37,8 @@ class FrankaRosInterface:
                  sub_franka_state_topic="/franka_state_controller/franka_states",
                  set_init_force_serv_name="/motion_generator/set_initial_force",
                  run_primitive_serv_name="/motion_generator/run_primitive",
-                 recovery_action_name="/franka_control/error_recovery"):
+                 recovery_action_name="/franka_control/error_recovery",
+                 reset_controller_srv_name="/variable_impedance_controller/reset_controller"):
 
         self.sub_state_topic = sub_state_topic
         self.sub_motion_gen_topic = sub_motion_gen_topic
@@ -44,6 +46,7 @@ class FrankaRosInterface:
         self.set_init_force_serv_name = set_init_force_serv_name
         self.run_primitive_serv_name = run_primitive_serv_name
         self.recovery_action_name = recovery_action_name
+        self.reset_controller_name = reset_controller_srv_name
         self._record = False
         rospy.init_node("interface")
         # state
@@ -88,6 +91,9 @@ class FrankaRosInterface:
         # error recovery action server
         self._recovery_action_client = actionlib.SimpleActionClient(
             recovery_action_name, ErrorRecoveryAction)
+        # reset controller
+        self._reset_controller_serv = rospy.ServiceProxy(reset_controller_srv_name, ResetController)
+
         self.reset_record_data()
         # wait until subscriber is on
         timeout = 0.
@@ -205,6 +211,15 @@ class FrankaRosInterface:
             res = self.serv_set_init_force()
             if res.success == 1:
                 print("Set init force success")
+        except rospy.ServiceException as e:
+            print("Service SetInitialForce call failed: %s" % e)
+
+    def reset_controller(self):
+        rospy.wait_for_service(self.reset_controller_srv_name)
+        try:
+            res = self._reset_controller_serv()
+            if res.success == 1:
+                print("Reset controller success")
         except rospy.ServiceException as e:
             print("Service SetInitialForce call failed: %s" % e)
 
@@ -412,7 +427,7 @@ class FrankaRosInterface:
             kd = 2 * math.sqrt(kp)
         gain = self.get_gain(kp, kd)
         self.pub_gain.publish(gain)
-        
+
     def get_cmd(self, f, p, q, v):
         cmd = VariableImpedanceControllerCommand()
         cmd.f = f

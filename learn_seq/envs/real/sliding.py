@@ -33,7 +33,7 @@ class RealSlidingEnv(gym.Env):
     def __init__(self,
                  fd_range=[3, 5],
                  speed_range=[0.03, 0.05]):
-        
+
         # ros_interface to communicate with the ROS Controller
         self.ros_interface = FrankaRosInterface()
 
@@ -113,6 +113,8 @@ class RealSlidingEnv(gym.Env):
 
         # move to init pose
         self.ros_interface.move_to_pose(self.init_pos, self.init_quat, 0.2, self.tf_pos, self.tf_quat, 10.)
+        # reset controller
+        self.ros_interface.reset_controller()
 
         cmd = self.ros_interface.get_constant_velocity_cmd()
         cmd.constant_velocity_param.speed_factor = 0.01
@@ -201,7 +203,7 @@ class RealSlidingEnv(gym.Env):
 
         # Terminates after 120s?
         done = rospy.Time.now().to_sec() - self.start > self.timeout or self._is_robot_error()
-            
+
         return obs, rew, done, {}
 
     def _is_robot_error(self):
